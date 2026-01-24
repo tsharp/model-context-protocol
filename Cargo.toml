@@ -6,7 +6,7 @@ authors = ["Your Name <your.email@example.com>"]
 license = "MIT"
 description = "A Rust implementation of the Model Context Protocol (MCP)"
 repository = "https://github.com/yourusername/model-context-protocol"
-keywords = ["mcp", "model-context-protocol", "ai", "protocol"]
+keywords = ["mcp", "ai", "protocol", "context"]
 categories = ["development-tools"]
 readme = "README.md"
 
