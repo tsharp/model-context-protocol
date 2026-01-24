@@ -2,10 +2,10 @@
 name = "model-context-protocol"
 version = "0.1.0"
 edition = "2021"
-authors = ["Your Name <your.email@example.com>"]
+authors = ["Travis Sharp <travis@kuipersys.com>"]
 license = "MIT"
 description = "A Rust implementation of the Model Context Protocol (MCP)"
-repository = "https://github.com/yourusername/model-context-protocol"
+repository = "https://github.com/tsharp/model-context-protocol"
 keywords = ["mcp", "ai", "protocol", "context"]
 categories = ["development-tools"]
 readme = "README.md"
