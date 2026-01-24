@@ -1,0 +1,24 @@
+[package]
+name = "model-context-protocol"
+version = "0.1.0"
+edition = "2021"
+authors = ["Your Name <your.email@example.com>"]
+license = "MIT"
+description = "A Rust implementation of the Model Context Protocol (MCP)"
+repository = "https://github.com/yourusername/model-context-protocol"
+keywords = ["mcp", "model-context-protocol", "ai", "protocol"]
+categories = ["development-tools"]
+readme = "README.md"
+
+[dependencies]
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+tokio = { version = "1.0", features = ["full"] }
+async-trait = "0.1"
+
+[dev-dependencies]
+tokio-test = "0.4"
+
+[lib]
+name = "model_context_protocol"
+path = "src/lib.rs"
