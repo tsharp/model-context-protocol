@@ -3,6 +3,9 @@
 //! A simple calculator MCP server demonstrating function-based tools
 //! with the `#[mcp_tool]` macro.
 //!
+//! All parameters must be marked with `#[param("description")]` to provide
+//! descriptions for the LLM.
+//!
 //! ## Running
 //!
 //! ```sh
@@ -27,7 +30,7 @@ use mcp::{McpServer, McpServerConfig};
 
 /// Add two numbers together.
 #[mcp_tool(description = "Add two numbers together", group = "arithmetic")]
-fn add(a: f64, b: f64) -> f64 {
+fn add(#[param("The first number")] a: f64, #[param("The second number")] b: f64) -> f64 {
     a + b
 }
 
@@ -36,19 +39,28 @@ fn add(a: f64, b: f64) -> f64 {
     description = "Subtract second number from first",
     group = "arithmetic"
 )]
-fn subtract(a: f64, b: f64) -> f64 {
+fn subtract(
+    #[param("The number to subtract from")] a: f64,
+    #[param("The number to subtract")] b: f64,
+) -> f64 {
     a - b
 }
 
 /// Multiply two numbers.
 #[mcp_tool(description = "Multiply two numbers", group = "arithmetic")]
-fn multiply(a: f64, b: f64) -> f64 {
+fn multiply(
+    #[param("The first factor")] a: f64,
+    #[param("The second factor")] b: f64,
+) -> f64 {
     a * b
 }
 
 /// Divide the first number by the second.
 #[mcp_tool(description = "Divide first number by second", group = "arithmetic")]
-fn divide(a: f64, b: f64) -> Result<f64, String> {
+fn divide(
+    #[param("The dividend")] a: f64,
+    #[param("The divisor")] b: f64,
+) -> Result<f64, String> {
     if b == 0.0 {
         Err("Division by zero".to_string())
     } else {

@@ -140,6 +140,32 @@ pub mod macros {
     //! Procedural macros for defining MCP servers and tools.
     //!
     //! This module re-exports the macros from `model-context-protocol-macros`.
+    //!
+    //! Use `#[mcp(...)]` on function parameters to add descriptions:
+    //! ```rust,ignore
+    //! #[mcp_server]
+    //! impl MyServer {
+    //!     #[mcp_tool(description = "Add two numbers")]
+    //!     pub fn add(
+    //!         &self,
+    //!         #[param("First number")] a: f64,
+    //!         #[param("Second number")] b: f64,
+    //!     ) -> f64 { a + b }
+    //! }
+    //! ```
+    //!
+    //! For standalone function tools:
+    //! ```rust,ignore
+    //! use mcp::macros::mcp_tool;
+    //!
+    //! #[mcp_tool(description = "Add two numbers")]
+    //! fn add(#[param("First number")] a: f64, #[param("Second number")] b: f64) -> f64 {
+    //!     a + b
+    //! }
+    //! ```
+    //!
+    //! Note: `#[mcp_tool]` and `#[param]` are inert attributes processed by `#[mcp_server]`
+    //! when used on impl blocks. For standalone functions, `#[mcp_tool]` generates a tool struct.
     pub use model_context_protocol_macros::{mcp_server, mcp_tool};
 }
 

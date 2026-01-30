@@ -36,13 +36,13 @@ The simplest way to create an MCP server - just annotate functions:
 use mcp::macros::mcp_tool;
 use mcp::{McpServer, McpServerConfig};
 
-#[mcp_tool(description = "Add two numbers", group = "arithmetic")]
-fn add(a: f64, b: f64) -> f64 {
+#[mcp_tool("Add two numbers", group = "arithmetic")]
+fn add(#[param("First number")] a: f64, #[param("Second number")] b: f64) -> f64 {
     a + b
 }
 
-#[mcp_tool(description = "Subtract two numbers", group = "arithmetic")]
-fn subtract(a: f64, b: f64) -> f64 {
+#[mcp_tool("Subtract two numbers", group = "arithmetic")]
+fn subtract(#[param("Number to subtract from")] a: f64, #[param("Number to subtract")] b: f64) -> f64 {
     a - b
 }
 
@@ -65,7 +65,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 For more complex servers with shared state:
 
 ```rust
-use mcp::macros::{mcp_server, mcp_tool};
+use mcp::macros::mcp_server;
 use mcp::{MacroServer, MacroServerAdapter, McpServerConfig};
 
 #[mcp_server(name = "calculator", version = "1.0.0")]
@@ -73,13 +73,17 @@ pub struct Calculator;
 
 #[mcp_server]
 impl Calculator {
-    #[mcp_tool(description = "Add two numbers")]
-    pub fn add(&self, a: f64, b: f64) -> f64 {
+    #[mcp_tool("Add two numbers")]
+    pub fn add(&self, #[param("First number")] a: f64, #[param("Second number")] b: f64) -> f64 {
         a + b
     }
 
-    #[mcp_tool(description = "Divide two numbers")]
-    pub fn divide(&self, a: f64, b: f64) -> Result<f64, String> {
+    #[mcp_tool("Divide two numbers")]
+    pub fn divide(
+        &self,
+        #[param("Dividend")] a: f64,
+        #[param("Divisor")] b: f64,
+    ) -> Result<f64, String> {
         if b == 0.0 {
             Err("Division by zero".to_string())
         } else {
@@ -132,7 +136,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 - **JSON-RPC 2.0 Protocol**: Full implementation of the MCP JSON-RPC protocol
 - **Multiple Transports**: Support for stdio and HTTP-based MCP servers
 - **McpHub**: Central hub for managing multiple MCP server connections
-- **Procedural Macros**: `#[mcp_server]` and `#[mcp_tool]` for declarative definitions
+- **Procedural Macros**: `#[mcp_server]`, `#[mcp_tool]`, and `#[param]` for declarative definitions
+- **Parameter Descriptions**: `#[param("description")]` provides LLM-friendly parameter documentation
 - **Tool Groups**: Organize tools by group for auto-discovery
 - **Tool Routing**: Automatic routing of tool calls to the correct server
 - **Error Handling**: Built-in `ToolResult<T>` for ergonomic error handling

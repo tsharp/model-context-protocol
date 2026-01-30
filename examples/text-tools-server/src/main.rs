@@ -2,6 +2,9 @@
 //!
 //! An MCP server demonstrating HTTP transport with function-based tools.
 //!
+//! All parameters must be marked with `#[param("description")]` to provide
+//! descriptions for the LLM.
+//!
 //! ## Running
 //!
 //! ```sh
@@ -31,25 +34,25 @@ use mcp::{McpServer, McpServerConfig};
 
 /// Echo back the provided message.
 #[mcp_tool(group = "text", description = "Echo back the provided message")]
-fn echo(message: String) -> String {
+fn echo(#[param("The message to echo back")] message: String) -> String {
     format!("Echo: {}", message)
 }
 
 /// Reverse the provided text.
 #[mcp_tool(group = "text", description = "Reverse the provided text")]
-fn reverse(text: String) -> String {
+fn reverse(#[param("The text to reverse")] text: String) -> String {
     text.chars().rev().collect()
 }
 
 /// Convert text to uppercase.
 #[mcp_tool(group = "text", description = "Convert text to uppercase")]
-fn uppercase(text: String) -> String {
+fn uppercase(#[param("The text to convert")] text: String) -> String {
     text.to_uppercase()
 }
 
 /// Convert text to lowercase.
 #[mcp_tool(group = "text", description = "Convert text to lowercase")]
-fn lowercase(text: String) -> String {
+fn lowercase(#[param("The text to convert")] text: String) -> String {
     text.to_lowercase()
 }
 

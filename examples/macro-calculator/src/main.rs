@@ -3,8 +3,19 @@
 //! Demonstrates using `#[mcp_server]` and `#[mcp_tool]` macros to define
 //! an MCP server with minimal boilerplate.
 //!
+//! Parameters are explicitly marked with `#[param]` to include them
+//! in the tool schema with descriptions for the LLM.
+//!
 //! ## Running
 //!
+
+// Uncomment below to test the compile error for unmarked parameters:
+// #[mcp_server]
+// impl BadTest {
+//     #[mcp_tool(description = "Test")]
+//     pub fn test(&self, unmarked: i32) -> i32 { unmarked }
+// }
+// Error: "Parameter `unmarked` must be marked with #[param(\"description\")]..."
 //! ```sh
 //! cargo run -p macro-calculator
 //! ```
@@ -23,26 +34,42 @@ pub struct Calculator;
 #[mcp_server]
 impl Calculator {
     /// Add two numbers together.
-    #[mcp_tool(description = "Add two numbers together")]
-    pub fn add(&self, a: f64, b: f64) -> f64 {
+    #[mcp_tool("Add two numbers together")]
+    pub fn add(
+        &self,
+        #[param("The first number to add")] a: f64,
+        #[param("The second number to add")] b: f64,
+    ) -> f64 {
         a + b
     }
 
     /// Subtract the second number from the first.
-    #[mcp_tool(description = "Subtract second number from first")]
-    pub fn subtract(&self, a: f64, b: f64) -> f64 {
+    #[mcp_tool("Subtract second number from first")]
+    pub fn subtract(
+        &self,
+        #[param("The number to subtract from")] a: f64,
+        #[param("The number to subtract")] b: f64,
+    ) -> f64 {
         a - b
     }
 
     /// Multiply two numbers.
-    #[mcp_tool(description = "Multiply two numbers")]
-    pub fn multiply(&self, a: f64, b: f64) -> f64 {
+    #[mcp_tool("Multiply two numbers")]
+    pub fn multiply(
+        &self,
+        #[param("The first factor")] a: f64,
+        #[param("The second factor")] b: f64,
+    ) -> f64 {
         a * b
     }
 
     /// Divide the first number by the second.
-    #[mcp_tool(description = "Divide first number by second")]
-    pub fn divide(&self, a: f64, b: f64) -> Result<f64, String> {
+    #[mcp_tool("Divide first number by second")]
+    pub fn divide(
+        &self,
+        #[param("The dividend (number to divide)")] a: f64,
+        #[param("The divisor (number to divide by)")] b: f64,
+    ) -> Result<f64, String> {
         if b == 0.0 {
             Err("Division by zero".to_string())
         } else {
@@ -51,14 +78,21 @@ impl Calculator {
     }
 
     /// Calculate the power of a number.
-    #[mcp_tool(description = "Calculate a raised to the power of b")]
-    pub fn power(&self, base: f64, exponent: f64) -> f64 {
+    #[mcp_tool("Calculate a raised to the power of b")]
+    pub fn power(
+        &self,
+        #[param("The base number")] base: f64,
+        #[param("The exponent")] exponent: f64,
+    ) -> f64 {
         base.powf(exponent)
     }
 
     /// Calculate the square root of a number.
-    #[mcp_tool(description = "Calculate the square root of a number")]
-    pub fn sqrt(&self, n: f64) -> Result<f64, String> {
+    #[mcp_tool("Calculate the square root of a number")]
+    pub fn sqrt(
+        &self,
+        #[param("The number to calculate the square root of")] n: f64,
+    ) -> Result<f64, String> {
         if n < 0.0 {
             Err("Cannot calculate square root of negative number".to_string())
         } else {
@@ -78,7 +112,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Create calculator using macros
     let calc = Calculator;
 
-    // Show the generated tools
+    // Show the generated tools with full schema
     println!("Tools defined by macros:");
     for tool in calc.list_tools() {
         println!(
@@ -86,6 +120,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             tool.name,
             tool.description.as_deref().unwrap_or("")
         );
+        println!("    Schema: {}", serde_json::to_string_pretty(&tool.input_schema).unwrap());
     }
 
     // Test calling tools directly

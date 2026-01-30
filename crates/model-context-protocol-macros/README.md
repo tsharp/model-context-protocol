@@ -6,51 +6,65 @@ Procedural macros for the Model Context Protocol (MCP) Rust implementation.
 
 This crate provides procedural macros to reduce boilerplate when defining MCP servers:
 
-- `#[mcp_server]` - Define server metadata and collect tools
+- `#[mcp_server]` - Define server metadata and collect tools from impl blocks
 - `#[mcp_tool]` - Mark a method as an MCP tool
-- `#[mcp_internal]` - Mark a server as built-in (no stdio wrapper)
+- `#[param]` - Document tool parameters for the LLM
 
 ## Usage
 
 ```rust
-use mcp::macros::{mcp_server, mcp_tool};
-use mcp::ToolResult;
-use serde_json::Value;
+use mcp::macros::mcp_server;
 
 #[mcp_server(name = "calculator", version = "1.0.0")]
 pub struct CalculatorServer;
 
 #[mcp_server]
 impl CalculatorServer {
-    #[mcp_tool(description = "Add two numbers")]
-    pub fn add(&self, a: f64, b: f64) -> ToolResult<f64> {
-        Ok(a + b)
+    #[mcp_tool("Add two numbers")]
+    pub fn add(
+        &self,
+        #[param("First number")] a: f64,
+        #[param("Second number")] b: f64,
+    ) -> f64 {
+        a + b
     }
     
-    #[mcp_tool(description = "Multiply two numbers")]
-    pub fn multiply(&self, a: f64, b: f64) -> ToolResult<f64> {
-        Ok(a * b)
+    #[mcp_tool("Multiply two numbers")]
+    pub fn multiply(
+        &self,
+        #[param("First factor")] a: f64,
+        #[param("Second factor")] b: f64,
+    ) -> f64 {
+        a * b
     }
 }
 ```
 
-## Parameter Documentation
+## Parameter Attributes
 
-Tool parameters can be documented using doc comments:
+All tool parameters (except `&self`) must be marked with `#[param(...)]`:
 
 ```rust
-#[mcp_tool(description = "Store a value in memory")]
-pub fn memory_write(
-    &self,
-    /// The scope/namespace for the memory
-    scope: String,
-    /// The key to store the value under
-    key: String,
-    /// The value to store (can be any JSON value)
-    value: Value,
-) -> ToolResult<String> {
-    // implementation
-}
+// Shorthand - just the description:
+#[param("The user's name")]
+
+// Full form - with additional options:
+#[param(description = "The user's name", name = "username", required = true)]
+```
+
+Options:
+- `description` - Description shown to the LLM (required for good UX)
+- `name` - Custom parameter name override (optional, defaults to argument name)
+- `required` - Override required/optional inference (optional, defaults based on `Option<T>`)
+
+## Tool Attributes
+
+```rust
+// Shorthand - just the description:
+#[mcp_tool("Add two numbers")]
+
+// Full form - with additional options:
+#[mcp_tool(description = "Add two numbers", name = "custom_add", group = "math")]
 ```
 
 ## License

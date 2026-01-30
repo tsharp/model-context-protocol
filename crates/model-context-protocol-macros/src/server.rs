@@ -5,9 +5,13 @@
 use darling::FromMeta;
 use proc_macro2::TokenStream;
 use quote::quote;
-use syn::{parse2, Attribute, ImplItem, ItemImpl, ItemStruct, Lit, Meta};
+use syn::{parse2, Attribute, FnArg, ImplItem, ItemImpl, ItemStruct, Lit, Meta};
 
-use crate::tool::{CollectedTool, ParamInfo};
+use crate::schema::is_option_type;
+use crate::tool::{
+    has_param_attr, parse_param_attrs, strip_param_attrs, CollectedTool,
+    ParamInfo,
+};
 
 /// Arguments for `#[mcp_server]` on structs.
 #[derive(Debug, Default, FromMeta)]
@@ -82,7 +86,10 @@ fn process_impl_block(impl_block: ItemImpl) -> TokenStream {
     let struct_ty = &impl_block.self_ty;
 
     // Collect tools from methods with #[mcp_tool_meta] or #[mcp_tool]
-    let tools = collect_tools(&impl_block);
+    let tools = match collect_tools(&impl_block) {
+        Ok(t) => t,
+        Err(e) => return e.to_compile_error(),
+    };
 
     // Generate tool definitions for McpTool
     let tool_defs: Vec<TokenStream> = tools.iter().map(|t| t.generate_mcp_tool_def()).collect();
@@ -90,16 +97,23 @@ fn process_impl_block(impl_block: ItemImpl) -> TokenStream {
     // Generate call_tool match arms
     let call_arms: Vec<TokenStream> = tools.iter().map(|t| t.generate_call_arm()).collect();
 
-    // Strip mcp_tool_meta attributes from methods
+    // Strip mcp_tool_meta and mcp_tool attributes from methods, and #[param] from parameters
     let cleaned_items: Vec<TokenStream> = impl_block
         .items
         .iter()
         .map(|item| {
             if let ImplItem::Fn(method) = item {
                 let mut cleaned = method.clone();
+                // Strip #[mcp_tool] and #[mcp_tool_meta] from method
                 cleaned
                     .attrs
                     .retain(|a| !is_mcp_tool_meta(a) && !is_mcp_tool(a));
+                // Strip #[param] from parameters
+                for input in &mut cleaned.sig.inputs {
+                    if let FnArg::Typed(pat_type) = input {
+                        strip_param_attrs(&mut pat_type.attrs);
+                    }
+                }
                 quote! { #cleaned }
             } else {
                 quote! { #item }
@@ -141,38 +155,38 @@ fn process_impl_block(impl_block: ItemImpl) -> TokenStream {
 }
 
 /// Collect tools from an impl block by looking for `#[mcp_tool_meta]` attributes.
-fn collect_tools(impl_block: &ItemImpl) -> Vec<CollectedTool> {
+fn collect_tools(impl_block: &ItemImpl) -> Result<Vec<CollectedTool>, syn::Error> {
     let mut tools = Vec::new();
 
     for item in &impl_block.items {
         if let ImplItem::Fn(method) = item {
-            if let Some(tool) = extract_tool_from_method(method) {
+            if let Some(tool) = extract_tool_from_method(method)? {
                 tools.push(tool);
             }
         }
     }
 
-    tools
+    Ok(tools)
 }
 
 /// Extract tool metadata from a method's attributes.
-fn extract_tool_from_method(method: &syn::ImplItemFn) -> Option<CollectedTool> {
+fn extract_tool_from_method(method: &syn::ImplItemFn) -> Result<Option<CollectedTool>, syn::Error> {
     // Look for #[mcp_tool_meta(...)] or #[mcp_tool(...)]
     for attr in &method.attrs {
         if is_mcp_tool_meta(attr) || is_mcp_tool(attr) {
             let (name, description) = parse_tool_meta_attr(attr, &method.sig.ident.to_string());
-            let params = extract_params_from_sig(&method.sig);
+            let params = extract_params_from_sig(&method.sig)?;
 
-            return Some(CollectedTool {
+            return Ok(Some(CollectedTool {
                 name,
                 description,
                 params,
                 method_ident: method.sig.ident.clone(),
-            });
+            }));
         }
     }
 
-    None
+    Ok(None)
 }
 
 fn is_mcp_tool_meta(attr: &Attribute) -> bool {
@@ -187,7 +201,14 @@ fn parse_tool_meta_attr(attr: &Attribute, default_name: &str) -> (String, String
     let mut name = default_name.to_string();
     let mut description = String::new();
 
-    // Try to parse the attribute
+    // Try shorthand first: #[mcp_tool("description")]
+    if let Ok(lit) = attr.parse_args::<Lit>() {
+        if let Lit::Str(s) = lit {
+            return (name, s.value());
+        }
+    }
+
+    // Try to parse the full form: #[mcp_tool(description = "...", name = "...")]
     if let Ok(nested) = attr
         .parse_args_with(syn::punctuated::Punctuated::<syn::Meta, syn::Token![,]>::parse_terminated)
     {
@@ -215,9 +236,7 @@ fn parse_tool_meta_attr(attr: &Attribute, default_name: &str) -> (String, String
     (name, description)
 }
 
-fn extract_params_from_sig(sig: &syn::Signature) -> Vec<ParamInfo> {
-    use crate::schema::is_option_type;
-
+fn extract_params_from_sig(sig: &syn::Signature) -> Result<Vec<ParamInfo>, syn::Error> {
     let mut params = Vec::new();
 
     for input in &sig.inputs {
@@ -228,24 +247,47 @@ fn extract_params_from_sig(sig: &syn::Signature) -> Vec<ParamInfo> {
                     continue;
                 }
 
-                // Extract doc comment
-                let description = pat_type.attrs.iter().find_map(|attr| {
-                    if attr.path().is_ident("doc") {
-                        if let Meta::NameValue(meta) = &attr.meta {
-                            if let syn::Expr::Lit(expr_lit) = &meta.value {
-                                if let Lit::Str(lit_str) = &expr_lit.lit {
-                                    return Some(lit_str.value().trim().to_string());
+                // Require all parameters to be marked with #[param]
+                if !has_param_attr(&pat_type.attrs) {
+                    return Err(syn::Error::new_spanned(
+                        pat_ident,
+                        format!(
+                            "Parameter `{}` must be marked with #[param(\"description\")]. \
+                            All tool parameters require explicit #[param] attributes.",
+                            name
+                        ),
+                    ));
+                }
+
+                // Parse the #[param] attribute
+                let param_args = parse_param_attrs(&pat_type.attrs)
+                    .unwrap_or_default();
+
+                // Priority: explicit attr description > doc comment
+                let description = param_args.description.or_else(|| {
+                    pat_type.attrs.iter().find_map(|attr| {
+                        if attr.path().is_ident("doc") {
+                            if let Meta::NameValue(meta) = &attr.meta {
+                                if let syn::Expr::Lit(expr_lit) = &meta.value {
+                                    if let Lit::Str(lit_str) = &expr_lit.lit {
+                                        return Some(lit_str.value().trim().to_string());
+                                    }
                                 }
                             }
                         }
-                    }
-                    None
+                        None
+                    })
                 });
 
-                let required = !is_option_type(&pat_type.ty);
+                // Use custom name if provided, otherwise use argument name
+                let param_name = param_args.name.unwrap_or(name);
+
+                // Use explicit required if provided, otherwise infer from Option<T>
+                let required = param_args.required
+                    .unwrap_or_else(|| !is_option_type(&pat_type.ty));
 
                 params.push(ParamInfo {
-                    name,
+                    name: param_name,
                     ty: (*pat_type.ty).clone(),
                     description,
                     required,
@@ -254,5 +296,5 @@ fn extract_params_from_sig(sig: &syn::Signature) -> Vec<ParamInfo> {
         }
     }
 
-    params
+    Ok(params)
 }

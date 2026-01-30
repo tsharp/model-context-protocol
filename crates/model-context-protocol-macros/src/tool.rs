@@ -57,6 +57,58 @@ pub struct ToolArgs {
     pub group: Option<String>,
 }
 
+/// Arguments for the `#[mcp_tool_param]` attribute on function parameters.
+#[derive(Debug, Default, FromMeta)]
+pub struct ToolParamArgs {
+    /// Parameter description shown to the LLM.
+    #[darling(default)]
+    pub description: Option<String>,
+
+    /// Optional custom parameter name (defaults to argument name).
+    #[darling(default)]
+    pub name: Option<String>,
+
+    /// Whether this parameter is required (defaults to inferred from Option<T>).
+    #[darling(default)]
+    pub required: Option<bool>,
+}
+
+/// Parse `#[param(...)]` attributes from a parameter's attribute list.
+pub fn parse_param_attrs(attrs: &[syn::Attribute]) -> Option<ToolParamArgs> {
+    for attr in attrs {
+        if attr.path().is_ident("param") {
+            // Handle shorthand: #[param("description")]
+            if let Ok(lit) = attr.parse_args::<Lit>() {
+                if let Lit::Str(s) = lit {
+                    return Some(ToolParamArgs {
+                        description: Some(s.value()),
+                        name: None,
+                        required: None,
+                    });
+                }
+            }
+            // Handle full form: #[param(description = "...", ...)]
+            // Parse using darling directly from the attribute meta
+            if let Ok(args) = ToolParamArgs::from_meta(&attr.meta) {
+                return Some(args);
+            }
+            // Empty attribute - just marks the param as exposed
+            return Some(ToolParamArgs::default());
+        }
+    }
+    None
+}
+
+/// Check if a parameter has the `#[param]` attribute.
+pub fn has_param_attr(attrs: &[syn::Attribute]) -> bool {
+    attrs.iter().any(|a| a.path().is_ident("param"))
+}
+
+/// Strip `#[param]` attributes from a list (for output token stream).
+pub fn strip_param_attrs(attrs: &mut Vec<syn::Attribute>) {
+    attrs.retain(|a| !a.path().is_ident("param"))
+}
+
 /// Parsed parameter information.
 #[derive(Debug, Clone)]
 pub struct ParamInfo {
@@ -87,23 +139,40 @@ pub fn mcp_tool_impl(attr: TokenStream, item: TokenStream) -> TokenStream {
 }
 
 fn parse_tool_args(attr: TokenStream) -> Result<ToolArgs, syn::Error> {
-    let meta = if attr.is_empty() {
+    if attr.is_empty() {
         return Err(syn::Error::new(
             proc_macro2::Span::call_site(),
-            "mcp_tool requires a description: #[mcp_tool(description = \"...\")]",
+            "mcp_tool requires a description: #[mcp_tool(\"description\")] or #[mcp_tool(description = \"...\")]",
         ));
-    } else {
-        let parsed: Meta = parse2(quote! { mcp_tool(#attr) })?;
-        parsed
-    };
+    }
 
+    // Try shorthand first: #[mcp_tool("description")]
+    if let Ok(lit) = parse2::<Lit>(attr.clone()) {
+        if let Lit::Str(s) = lit {
+            return Ok(ToolArgs {
+                description: s.value(),
+                name: None,
+                group: None,
+            });
+        }
+    }
+
+    // Full form: #[mcp_tool(description = "...", name = "...", group = "...")]
+    let meta: Meta = parse2(quote! { mcp_tool(#attr) })?;
     ToolArgs::from_meta(&meta).map_err(|e| syn::Error::new(proc_macro2::Span::call_site(), e))
 }
 
 /// Process a method inside an impl block - generates metadata for #[mcp_server] to collect
-fn process_impl_method(method: ImplItemFn, args: ToolArgs) -> TokenStream {
+fn process_impl_method(mut method: ImplItemFn, args: ToolArgs) -> TokenStream {
     let params = extract_params(&method.sig.inputs.iter().collect::<Vec<_>>());
     let tool_name = args.name.unwrap_or_else(|| method.sig.ident.to_string());
+
+    // Strip param attributes from parameters before emitting
+    for input in &mut method.sig.inputs {
+        if let FnArg::Typed(pat_type) = input {
+            strip_param_attrs(&mut pat_type.attrs);
+        }
+    }
 
     // Store metadata as an attribute for collection by #[mcp_server]
     let description = &args.description;
@@ -124,7 +193,7 @@ fn process_impl_method(method: ImplItemFn, args: ToolArgs) -> TokenStream {
 }
 
 /// Process a standalone function - generates a struct that implements McpTool
-fn process_standalone_function(func: ItemFn, args: ToolArgs) -> TokenStream {
+fn process_standalone_function(mut func: ItemFn, args: ToolArgs) -> TokenStream {
     let func_name = &func.sig.ident;
     let tool_name = args.name.unwrap_or_else(|| func_name.to_string());
     let description = &args.description;
@@ -140,6 +209,13 @@ fn process_standalone_function(func: ItemFn, args: ToolArgs) -> TokenStream {
 
     let params = extract_params(&func.sig.inputs.iter().collect::<Vec<_>>());
     let is_async = func.sig.asyncness.is_some();
+
+    // Strip param attributes from parameters before emitting
+    for input in &mut func.sig.inputs {
+        if let FnArg::Typed(pat_type) = input {
+            strip_param_attrs(&mut pat_type.attrs);
+        }
+    }
 
     // Generate the JSON schema properties
     let properties = generate_json_properties(&params);
@@ -301,6 +377,9 @@ fn is_result_type(ty: &Type) -> bool {
 }
 
 /// Extract parameter information from function arguments.
+///
+/// Only parameters marked with `#[mcp_tool_param]` are included in the tool schema.
+/// Parameters without this attribute are skipped (useful for DI/context injection).
 fn extract_params(inputs: &[&FnArg]) -> Vec<ParamInfo> {
     let mut params = Vec::new();
 
@@ -313,14 +392,28 @@ fn extract_params(inputs: &[&FnArg]) -> Vec<ParamInfo> {
                     continue;
                 }
 
-                // Extract doc comment from attributes
-                let description = extract_doc_comment(&pat_type.attrs);
+                // Only include parameters marked with #[param]
+                if !has_param_attr(&pat_type.attrs) {
+                    continue;
+                }
 
-                // Check if optional
-                let required = !is_option_type(&pat_type.ty);
+                // Parse the #[param] attribute
+                let param_args = parse_param_attrs(&pat_type.attrs)
+                    .unwrap_or_default();
+
+                // Priority: explicit attr > doc comment
+                let description = param_args.description
+                    .or_else(|| extract_doc_comment(&pat_type.attrs));
+
+                // Use custom name if provided, otherwise use argument name
+                let param_name = param_args.name.unwrap_or(name);
+
+                // Use explicit required if provided, otherwise infer from Option<T>
+                let required = param_args.required
+                    .unwrap_or_else(|| !is_option_type(&pat_type.ty));
 
                 params.push(ParamInfo {
-                    name,
+                    name: param_name,
                     ty: (*pat_type.ty).clone(),
                     description,
                     required,
