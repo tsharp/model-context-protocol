@@ -1,83 +1,151 @@
-//! # Model Context Protocol
+//! # MCP - Model Context Protocol
 //!
-//! A Rust implementation of the Model Context Protocol (MCP).
+//! A Rust implementation of the Model Context Protocol (MCP) for AI tool integration.
 //!
-//! This library provides types and traits for building MCP servers and clients.
+//! This crate provides the infrastructure for communicating with MCP servers
+//! via stdio/HTTP transports.
 //!
-//! ## Example
+//! ## Features
 //!
-//! ```rust
-//! use model_context_protocol::Protocol;
+//! - **McpHub**: Central hub for managing multiple MCP server connections
+//! - **Multiple Transports**: Support for stdio and HTTP-based MCP servers
+//! - **Tool Routing**: Automatic routing of tool calls to the correct server
+//! - **Macros**: `#[mcp_tool]` for easy tool definitions from functions
 //!
-//! // Example usage will be added as the library develops
+//! ## Quick Start - Creating a Server
+//!
+//! ```rust,ignore
+//! use mcp::{mcp_tool, McpServerConfig, McpServer, tools};
+//!
+//! // Define tools as simple functions
+//! #[mcp_tool(description = "Add two numbers")]
+//! fn add(a: f64, b: f64) -> f64 { a + b }
+//!
+//! #[mcp_tool(description = "Subtract two numbers")]
+//! fn subtract(a: f64, b: f64) -> f64 { a - b }
+//!
+//! #[tokio::main]
+//! async fn main() -> Result<(), Box<dyn std::error::Error>> {
+//!     let config = McpServerConfig::builder()
+//!         .name("calculator")
+//!         .version("1.0.0")
+//!         .with_stdio_transport()
+//!         .with_tools(tools![AddTool, SubtractTool])
+//!         .build();
+//!
+//!     McpServer::run(config).await?;
+//!     Ok(())
+//! }
 //! ```
+//!
+//! ## Connecting to Servers
+//!
+//! ```rust,ignore
+//! use mcp::{McpHub, McpServerConnectionConfig};
+//!
+//! let hub = McpHub::new();
+//!
+//! // Connect to an external server
+//! let config = McpServerConnectionConfig::stdio("my-server", "node", vec!["server.js".into()]);
+//! hub.connect(config).await?;
+//!
+//! // List available tools
+//! let tools = hub.list_all_tools().await?;
+//! ```
+//!
+//! ## Feature Flags
+//!
+//! - `default` - Enables stdio, http, and macros features
+//! - `stdio` - Stdio transport for spawning server processes
+//! - `http` - HTTP transport for connecting to HTTP servers
+//! - `http-server` - HTTP server with actix-web (for hosting MCP servers)
+//! - `macros` - Procedural macros for defining tools
 
-use serde::{Deserialize, Serialize};
+#![cfg_attr(docsrs, feature(doc_cfg))]
 
-/// The current version of the MCP protocol
-pub const PROTOCOL_VERSION: &str = "0.1.0";
+pub mod protocol;
+pub mod transport;
+pub mod result;
+pub mod tool;
+pub mod server;
 
-/// Represents the Model Context Protocol interface
-pub trait Protocol {
-    /// Initialize the protocol connection
-    fn initialize(&mut self) -> Result<(), Error>;
-    
-    /// Send a message through the protocol
-    fn send_message(&self, message: Message) -> Result<(), Error>;
-    
-    /// Receive a message from the protocol
-    fn receive_message(&self) -> Result<Message, Error>;
-}
+#[cfg(feature = "macros")]
+#[cfg_attr(docsrs, doc(cfg(feature = "macros")))]
+pub mod macro_adapter;
 
-/// A message in the Model Context Protocol
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct Message {
-    /// Message ID
-    pub id: String,
-    /// Message type
-    pub message_type: MessageType,
-    /// Message payload
-    pub payload: serde_json::Value,
-}
+#[cfg(feature = "stdio")]
+#[cfg_attr(docsrs, doc(cfg(feature = "stdio")))]
+pub mod stdio;
 
-/// Types of messages in the protocol
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub enum MessageType {
-    /// Request message
-    Request,
-    /// Response message
-    Response,
-    /// Notification message
-    Notification,
-    /// Error message
-    Error,
-}
+#[cfg(feature = "http")]
+#[cfg_attr(docsrs, doc(cfg(feature = "http")))]
+pub mod http;
 
-/// Error types for the protocol
-#[derive(Debug, Clone)]
-pub enum Error {
-    /// Connection error
-    ConnectionError(String),
-    /// Serialization error
-    SerializationError(String),
-    /// Protocol error
-    ProtocolError(String),
-    /// Unknown error
-    Unknown(String),
-}
+pub mod hub;
 
-impl std::fmt::Display for Error {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Error::ConnectionError(msg) => write!(f, "Connection error: {}", msg),
-            Error::SerializationError(msg) => write!(f, "Serialization error: {}", msg),
-            Error::ProtocolError(msg) => write!(f, "Protocol error: {}", msg),
-            Error::Unknown(msg) => write!(f, "Unknown error: {}", msg),
-        }
-    }
-}
+// =============================================================================
+// Re-exports
+// =============================================================================
 
-impl std::error::Error for Error {}
+// Protocol types
+pub use protocol::{
+    CallToolParams, CallToolResult, JsonRpcError, JsonRpcId, JsonRpcPayload,
+    JsonRpcRequest, JsonRpcResponse, ListToolsParams, ListToolsResult,
+    McpCapabilities, McpServerInfo, McpToolDef, ToolContent, ToolDefinition,
+    ToolInputSchema, MCP_PROTOCOL_VERSION,
+};
+
+// Transport types
+pub use transport::{
+    ClientInfo, InitializeCapabilities, InitializeParams, InitializeResult,
+    McpServerConnectionConfig, McpTransport, McpTransportError, ServerCapabilities,
+    ServerInfo, TransportTypeId,
+};
+
+// Result types
+pub use result::{error_result, success_result, tool_err, tool_ok, IntoCallToolResult, ToolResult};
+
+// Tool types
+pub use tool::{
+    all_tools, tools_in_group, BoxFuture, DynTool, FnTool, McpTool, ToolCallResult, ToolEntry,
+    ToolFactory, ToolProvider, ToolRegistry,
+};
+
+// Re-export inventory for use in macro-generated code
+#[doc(hidden)]
+pub use inventory;
+
+// Server
+pub use server::{McpServer, McpServerConfig, McpServerConfigBuilder, ServerError, ServerTransport};
+
+// Hub
+pub use hub::McpHub;
+
+// Stdio transport (when enabled)
+#[cfg(feature = "stdio")]
+#[cfg_attr(docsrs, doc(cfg(feature = "stdio")))]
+pub use stdio::{AsyncStdioTransport, StdioTransport, StdioTransportAdapter};
+
+// HTTP transport (when enabled)
+#[cfg(feature = "http")]
+#[cfg_attr(docsrs, doc(cfg(feature = "http")))]
+pub use http::{HttpTransport, HttpTransportAdapter};
+
+// Macros (when enabled)
+#[cfg(feature = "macros")]
+#[cfg_attr(docsrs, doc(cfg(feature = "macros")))]
+pub use mcp_macros::{mcp_server, mcp_tool};
+
+// Macro adapter (when enabled)
+#[cfg(feature = "macros")]
+#[cfg_attr(docsrs, doc(cfg(feature = "macros")))]
+pub use macro_adapter::{MacroServer, MacroServerAdapter};
+
+/// Current MCP protocol version supported by this crate.
+pub const PROTOCOL_VERSION: &str = "2024-11-05";
+
+/// Crate version.
+pub const VERSION: &str = env!("CARGO_PKG_VERSION");
 
 #[cfg(test)]
 mod tests {
@@ -85,20 +153,17 @@ mod tests {
 
     #[test]
     fn test_protocol_version() {
-        assert_eq!(PROTOCOL_VERSION, "0.1.0");
+        assert_eq!(PROTOCOL_VERSION, "2024-11-05");
     }
 
     #[test]
-    fn test_message_serialization() {
-        let msg = Message {
-            id: "test-123".to_string(),
-            message_type: MessageType::Request,
-            payload: serde_json::json!({"test": "data"}),
-        };
-        
-        let serialized = serde_json::to_string(&msg).unwrap();
-        let deserialized: Message = serde_json::from_str(&serialized).unwrap();
-        
-        assert_eq!(msg.id, deserialized.id);
+    fn test_version() {
+        assert!(!VERSION.is_empty());
+    }
+
+    #[tokio::test]
+    async fn test_hub_basic() {
+        let hub = McpHub::new();
+        assert!(!hub.list_servers().is_empty() || hub.list_servers().is_empty());
     }
 }

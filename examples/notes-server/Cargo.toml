@@ -1,0 +1,12 @@
+[package]
+name = "notes-server"
+version = "0.1.0"
+edition = "2021"
+publish = false
+description = "Notes MCP server example using in-process transport"
+
+[dependencies]
+mcp = { path = "../..", package = "model-context-protocol" }
+mcp-macros = { path = "../../crates/mcp-macros" }
+tokio = { version = "1.0", features = ["full"] }
+serde_json = "1.0"

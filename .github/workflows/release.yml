@@ -1,0 +1,103 @@
+name: Release
+
+on:
+  push:
+    branches:
+      - 'release/v*'
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  version:
+    name: Calculate Version
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.calc.outputs.version }}
+      is_tag: ${{ steps.calc.outputs.is_tag }}
+      is_prerelease: ${{ steps.calc.outputs.is_prerelease }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Calculate version
+        id: calc
+        shell: pwsh
+        run: |
+          $result = ./scripts/Get-Version.ps1
+          echo "version=$($result.Version)" >> $env:GITHUB_OUTPUT
+          echo "is_tag=$($result.IsTag.ToString().ToLower())" >> $env:GITHUB_OUTPUT
+          echo "is_prerelease=$($result.IsPrerelease.ToString().ToLower())" >> $env:GITHUB_OUTPUT
+          Write-Host "Calculated version: $($result.Version)"
+
+  build:
+    name: Build & Test
+    needs: version
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Rust
+        uses: dtolnay/rust-action@stable
+
+      - name: Cache cargo
+        uses: Swatinem/rust-cache@v2
+
+      - name: Update Cargo.toml versions
+        shell: pwsh
+        run: |
+          ./scripts/Get-Version.ps1 -UpdateCargo -Quiet
+
+      - name: Build
+        run: cargo build --workspace --all-features
+
+      - name: Test
+        run: cargo test --workspace --all-features
+
+  publish:
+    name: Publish to crates.io
+    needs: [version, build]
+    if: ${{ needs.version.outputs.is_tag == 'true' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Rust
+        uses: dtolnay/rust-action@stable
+
+      - name: Cache cargo
+        uses: Swatinem/rust-cache@v2
+
+      - name: Update Cargo.toml versions
+        shell: pwsh
+        run: |
+          ./scripts/Get-Version.ps1 -UpdateCargo
+
+      - name: Publish mcp-macros
+        run: cargo publish -p mcp-macros --token ${{ secrets.CARGO_REGISTRY_TOKEN }} --allow-dirty
+        continue-on-error: true
+
+      - name: Wait for crates.io index
+        run: sleep 30
+
+      - name: Publish model-context-protocol
+        run: cargo publish -p model-context-protocol --token ${{ secrets.CARGO_REGISTRY_TOKEN }} --allow-dirty
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: v${{ needs.version.outputs.version }}
+          generate_release_notes: true
+          draft: false
+          prerelease: ${{ needs.version.outputs.is_prerelease == 'true' }}
