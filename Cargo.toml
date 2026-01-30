@@ -1,0 +1,74 @@
+[workspace]
+resolver = "2"
+members = [
+    "crates/model-context-protocol-macros",
+    "examples/calculator-server",
+    "examples/text-tools-server",
+    "examples/notes-server",
+    "examples/macro-calculator",
+]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+authors = ["Travis Sharp <travis@kuipersys.com>"]
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/tsharp/model-context-protocol"
+
+[workspace.lints.rust]
+unsafe_code = "forbid"
+
+[workspace.lints.clippy]
+all = "warn"
+
+# Root package - the main MCP library
+[package]
+name = "model-context-protocol"
+version = "0.1.0"
+edition = "2021"
+authors = ["Travis Sharp <travis@kuipersys.com>"]
+license = "MIT OR Apache-2.0"
+description = "A Rust implementation of the Model Context Protocol (MCP) for AI tool integration"
+repository = "https://github.com/tsharp/model-context-protocol"
+keywords = ["mcp", "ai", "llm", "tools", "protocol"]
+categories = ["development-tools", "network-programming"]
+readme = "README.md"
+
+[features]
+default = ["stdio", "http", "macros"]
+stdio = []
+http = ["dep:reqwest"]
+macros = ["dep:model-context-protocol-macros"]
+http-server = ["dep:actix-web"]
+
+[dependencies]
+# Core
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+tokio = { version = "1.0", features = ["full"] }
+async-trait = "0.1"
+thiserror = "1.0"
+uuid = { version = "1.0", features = ["v4"] }
+inventory = "0.3"
+
+# Optional - HTTP transport (client)
+reqwest = { version = "0.11", features = ["json", "stream"], optional = true }
+
+# Optional - HTTP server (for examples)
+actix-web = { version = "4", optional = true }
+
+# Optional - Macros
+model-context-protocol-macros = { version = "0.1.2", path = "crates/model-context-protocol-macros", optional = true }
+
+[dev-dependencies]
+tokio-test = "0.4"
+tempfile = "3.8"
+actix-web = "4"
+
+[lib]
+name = "model_context_protocol"
+path = "src/lib.rs"
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]

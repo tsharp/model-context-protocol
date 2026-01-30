@@ -1,0 +1,12 @@
+[package]
+name = "text-tools-server"
+version = "0.1.0"
+edition = "2021"
+publish = false
+description = "Text tools MCP server example using HTTP transport"
+
+[dependencies]
+mcp = { path = "../..", package = "model-context-protocol", features = ["http-server"] }
+model-context-protocol-macros = { path = "../../crates/model-context-protocol-macros" }
+tokio = { version = "1.0", features = ["full"] }
+serde_json = "1.0"
