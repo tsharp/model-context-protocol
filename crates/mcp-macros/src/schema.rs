@@ -130,7 +130,7 @@ mod tests {
     fn test_option_detection() {
         let opt_ty: Type = parse_quote!(Option<String>);
         let string_ty: Type = parse_quote!(String);
-        
+
         assert!(is_option_type(&opt_ty));
         assert!(!is_option_type(&string_ty));
     }

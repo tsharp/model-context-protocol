@@ -8,11 +8,11 @@ use std::collections::HashMap;
 use std::sync::{Arc, RwLock};
 use std::time::Duration;
 
+#[cfg(feature = "http")]
+use crate::http::HttpTransportAdapter;
 use crate::protocol::ToolDefinition;
 #[cfg(feature = "stdio")]
 use crate::stdio::StdioTransportAdapter;
-#[cfg(feature = "http")]
-use crate::http::HttpTransportAdapter;
 use crate::transport::{
     McpServerConnectionConfig, McpTransport, McpTransportError, TransportTypeId,
 };
@@ -79,7 +79,9 @@ impl McpHub {
             #[cfg(feature = "stdio")]
             TransportTypeId::Stdio => {
                 let command = config.command.ok_or_else(|| {
-                    McpTransportError::TransportError("Stdio transport requires command".to_string())
+                    McpTransportError::TransportError(
+                        "Stdio transport requires command".to_string(),
+                    )
                 })?;
 
                 let transport = StdioTransportAdapter::connect_with_env(
@@ -105,8 +107,10 @@ impl McpHub {
                     McpTransportError::TransportError("HTTP transport requires URL".to_string())
                 })?;
 
-                let transport =
-                    HttpTransportAdapter::with_timeout(url, Duration::from_secs(config.timeout_secs))?;
+                let transport = HttpTransportAdapter::with_timeout(
+                    url,
+                    Duration::from_secs(config.timeout_secs),
+                )?;
 
                 Arc::new(transport)
             }
@@ -120,7 +124,7 @@ impl McpHub {
 
         // Discover tools and cache mappings
         let tools = transport.list_tools().await?;
-        
+
         {
             let mut cache = self.tool_cache.write().unwrap();
             for tool in &tools {
@@ -172,7 +176,10 @@ impl McpHub {
                     }
                 }
                 Err(e) => {
-                    eprintln!("Warning: Failed to list tools from '{}': {}", server_name, e);
+                    eprintln!(
+                        "Warning: Failed to list tools from '{}': {}",
+                        server_name, e
+                    );
                 }
             }
         }
@@ -183,7 +190,10 @@ impl McpHub {
     /// Get all registered tools as a flat list.
     pub async fn list_all_tools(&self) -> Result<Vec<ToolDefinition>, McpTransportError> {
         let tools_with_servers = self.list_tools().await?;
-        Ok(tools_with_servers.into_iter().map(|(_, tool)| tool).collect())
+        Ok(tools_with_servers
+            .into_iter()
+            .map(|(_, tool)| tool)
+            .collect())
     }
 
     /// Populate the tool cache by querying all servers.
@@ -278,14 +288,17 @@ mod tests {
     async fn test_hub_unknown_tool() {
         let hub = McpHub::new();
 
-        let result = hub.call_tool("nonexistent_tool", serde_json::json!({})).await;
+        let result = hub
+            .call_tool("nonexistent_tool", serde_json::json!({}))
+            .await;
         assert!(matches!(result, Err(McpTransportError::UnknownTool(_))));
     }
 
     #[test]
     fn test_connection_config() {
-        let config = McpServerConnectionConfig::stdio("test", "node", vec!["server.js".to_string()])
-            .with_timeout(60);
+        let config =
+            McpServerConnectionConfig::stdio("test", "node", vec!["server.js".to_string()])
+                .with_timeout(60);
 
         assert_eq!(config.name, "test");
         assert_eq!(config.timeout_secs, 60);

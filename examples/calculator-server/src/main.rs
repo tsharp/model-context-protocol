@@ -31,7 +31,10 @@ fn add(a: f64, b: f64) -> f64 {
 }
 
 /// Subtract the second number from the first.
-#[mcp_tool(description = "Subtract second number from first", group = "arithmetic")]
+#[mcp_tool(
+    description = "Subtract second number from first",
+    group = "arithmetic"
+)]
 fn subtract(a: f64, b: f64) -> f64 {
     a - b
 }
@@ -62,7 +65,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .name("calculator")
         .version("1.0.0")
         .with_stdio_transport()
-        .register_tools_in_group("arithmetic")  // Auto-discovers all tools with group = "arithmetic"
+        .register_tools_in_group("arithmetic") // Auto-discovers all tools with group = "arithmetic"
         .build();
 
     McpServer::run(config).await?;

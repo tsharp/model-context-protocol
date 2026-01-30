@@ -34,8 +34,11 @@ pub fn mcp_server_impl(attr: TokenStream, item: TokenStream) -> TokenStream {
         return process_struct(struct_item, args);
     }
 
-    syn::Error::new_spanned(item, "mcp_server can only be applied to structs or impl blocks")
-        .to_compile_error()
+    syn::Error::new_spanned(
+        item,
+        "mcp_server can only be applied to structs or impl blocks",
+    )
+    .to_compile_error()
 }
 
 fn parse_server_args(attr: TokenStream) -> ServerArgs {
@@ -94,7 +97,9 @@ fn process_impl_block(impl_block: ItemImpl) -> TokenStream {
         .map(|item| {
             if let ImplItem::Fn(method) = item {
                 let mut cleaned = method.clone();
-                cleaned.attrs.retain(|a| !is_mcp_tool_meta(a) && !is_mcp_tool(a));
+                cleaned
+                    .attrs
+                    .retain(|a| !is_mcp_tool_meta(a) && !is_mcp_tool(a));
                 quote! { #cleaned }
             } else {
                 quote! { #item }
@@ -183,9 +188,9 @@ fn parse_tool_meta_attr(attr: &Attribute, default_name: &str) -> (String, String
     let mut description = String::new();
 
     // Try to parse the attribute
-    if let Ok(nested) = attr.parse_args_with(
-        syn::punctuated::Punctuated::<syn::Meta, syn::Token![,]>::parse_terminated,
-    ) {
+    if let Ok(nested) = attr
+        .parse_args_with(syn::punctuated::Punctuated::<syn::Meta, syn::Token![,]>::parse_terminated)
+    {
         for meta in nested {
             if let syn::Meta::NameValue(nv) = meta {
                 if nv.path.is_ident("name") {
@@ -212,7 +217,7 @@ fn parse_tool_meta_attr(attr: &Attribute, default_name: &str) -> (String, String
 
 fn extract_params_from_sig(sig: &syn::Signature) -> Vec<ParamInfo> {
     use crate::schema::is_option_type;
-    
+
     let mut params = Vec::new();
 
     for input in &sig.inputs {
@@ -224,21 +229,18 @@ fn extract_params_from_sig(sig: &syn::Signature) -> Vec<ParamInfo> {
                 }
 
                 // Extract doc comment
-                let description = pat_type
-                    .attrs
-                    .iter()
-                    .find_map(|attr| {
-                        if attr.path().is_ident("doc") {
-                            if let Meta::NameValue(meta) = &attr.meta {
-                                if let syn::Expr::Lit(expr_lit) = &meta.value {
-                                    if let Lit::Str(lit_str) = &expr_lit.lit {
-                                        return Some(lit_str.value().trim().to_string());
-                                    }
+                let description = pat_type.attrs.iter().find_map(|attr| {
+                    if attr.path().is_ident("doc") {
+                        if let Meta::NameValue(meta) = &attr.meta {
+                            if let syn::Expr::Lit(expr_lit) = &meta.value {
+                                if let Lit::Str(lit_str) = &expr_lit.lit {
+                                    return Some(lit_str.value().trim().to_string());
                                 }
                             }
                         }
-                        None
-                    });
+                    }
+                    None
+                });
 
                 let required = !is_option_type(&pat_type.ty);
 

@@ -14,9 +14,7 @@ use tokio::sync::oneshot;
 use tokio::time::timeout;
 
 use crate::protocol::*;
-use crate::transport::{
-    InitializeParams, McpTransport, McpTransportError, TransportTypeId,
-};
+use crate::transport::{InitializeParams, McpTransport, McpTransportError, TransportTypeId};
 
 /// Stdio-based MCP transport for communicating with child processes.
 pub struct StdioTransport {
@@ -47,16 +45,18 @@ impl StdioTransport {
             cmd.env(key, value);
         }
 
-        let child = cmd
-            .spawn()
-            .map_err(|e| McpTransportError::TransportError(format!("Failed to spawn process '{}': {}", command, e)))?;
+        let child = cmd.spawn().map_err(|e| {
+            McpTransportError::TransportError(format!(
+                "Failed to spawn process '{}': {}",
+                command, e
+            ))
+        })?;
 
         // Verify process is running
         let mut process = child;
-        if let Some(status) = process
-            .try_wait()
-            .map_err(|e| McpTransportError::TransportError(format!("Process check failed: {}", e)))?
-        {
+        if let Some(status) = process.try_wait().map_err(|e| {
+            McpTransportError::TransportError(format!("Process check failed: {}", e))
+        })? {
             return Err(McpTransportError::TransportError(format!(
                 "Process exited immediately with status: {}",
                 status
@@ -93,8 +93,7 @@ impl StdioTransport {
         // Serialize and send request
         let request_json = serde_json::to_string(&request)?;
 
-        writeln!(stdin, "{}", request_json)
-            .map_err(|e| McpTransportError::IoError(e))?;
+        writeln!(stdin, "{}", request_json).map_err(|e| McpTransportError::IoError(e))?;
 
         stdin.flush().map_err(|e| McpTransportError::IoError(e))?;
 
@@ -122,9 +121,10 @@ impl StdioTransport {
         // Extract result or error
         match response.payload {
             JsonRpcPayload::Success { result } => Ok(result),
-            JsonRpcPayload::Error { error } => {
-                Err(McpTransportError::ServerError(format!("MCP Error: {}", error)))
-            }
+            JsonRpcPayload::Error { error } => Err(McpTransportError::ServerError(format!(
+                "MCP Error: {}",
+                error
+            ))),
         }
     }
 
@@ -214,22 +214,19 @@ impl AsyncStdioTransport {
                     .lock()
                     .map_err(|e| McpTransportError::TransportError(format!("Lock error: {}", e)))?;
 
-                let stdin = process
-                    .stdin
-                    .as_mut()
-                    .ok_or_else(|| McpTransportError::TransportError("Failed to get stdin".to_string()))?;
+                let stdin = process.stdin.as_mut().ok_or_else(|| {
+                    McpTransportError::TransportError("Failed to get stdin".to_string())
+                })?;
 
                 let request_json = serde_json::to_string(&request)?;
 
-                writeln!(stdin, "{}", request_json)
-                    .map_err(|e| McpTransportError::IoError(e))?;
+                writeln!(stdin, "{}", request_json).map_err(|e| McpTransportError::IoError(e))?;
 
                 stdin.flush().map_err(|e| McpTransportError::IoError(e))?;
 
-                let stdout = process
-                    .stdout
-                    .as_mut()
-                    .ok_or_else(|| McpTransportError::TransportError("Failed to get stdout".to_string()))?;
+                let stdout = process.stdout.as_mut().ok_or_else(|| {
+                    McpTransportError::TransportError("Failed to get stdout".to_string())
+                })?;
 
                 let mut reader = BufReader::new(stdout);
                 let mut response_line = String::new();
@@ -247,9 +244,9 @@ impl AsyncStdioTransport {
 
                 match response.payload {
                     JsonRpcPayload::Success { result } => Ok(result),
-                    JsonRpcPayload::Error { error } => {
-                        Err(McpTransportError::ServerError(format!("MCP Error: {}", error)))
-                    }
+                    JsonRpcPayload::Error { error } => Err(McpTransportError::ServerError(
+                        format!("MCP Error: {}", error),
+                    )),
                 }
             })();
 
@@ -259,7 +256,9 @@ impl AsyncStdioTransport {
         // Wait with timeout
         match timeout(timeout_duration, rx).await {
             Ok(Ok(result)) => result,
-            Ok(Err(_)) => Err(McpTransportError::TransportError("Channel closed".to_string())),
+            Ok(Err(_)) => Err(McpTransportError::TransportError(
+                "Channel closed".to_string(),
+            )),
             Err(_) => Err(McpTransportError::Timeout(format!(
                 "Request timed out after {:?}",
                 timeout_duration
@@ -292,7 +291,14 @@ impl StdioTransportAdapter {
         config: Option<Value>,
         timeout: Duration,
     ) -> Result<Self, McpTransportError> {
-        Self::connect_with_env(command, args, std::collections::HashMap::new(), config, timeout).await
+        Self::connect_with_env(
+            command,
+            args,
+            std::collections::HashMap::new(),
+            config,
+            timeout,
+        )
+        .await
     }
 
     /// Create and initialize with environment variables.
@@ -322,7 +328,11 @@ impl StdioTransportAdapter {
         // Some servers expect this
         let _ = adapter
             .inner
-            .send_request_with_timeout("notifications/initialized", Some(serde_json::json!({})), adapter.timeout)
+            .send_request_with_timeout(
+                "notifications/initialized",
+                Some(serde_json::json!({})),
+                adapter.timeout,
+            )
             .await;
 
         Ok(adapter)
@@ -339,7 +349,11 @@ impl McpTransport for StdioTransportAdapter {
 
         let list_result: ListToolsResult = serde_json::from_value(result)?;
 
-        Ok(list_result.tools.into_iter().map(ToolDefinition::from).collect())
+        Ok(list_result
+            .tools
+            .into_iter()
+            .map(ToolDefinition::from)
+            .collect())
     }
 
     async fn call_tool(&self, name: &str, args: Value) -> Result<Value, McpTransportError> {

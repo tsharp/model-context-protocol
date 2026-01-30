@@ -44,11 +44,16 @@ impl HttpTransport {
     }
 
     /// Create with custom timeout.
-    pub fn with_timeout(endpoint: impl Into<String>, timeout: Duration) -> Result<Self, McpTransportError> {
+    pub fn with_timeout(
+        endpoint: impl Into<String>,
+        timeout: Duration,
+    ) -> Result<Self, McpTransportError> {
         let client = reqwest::Client::builder()
             .timeout(timeout)
             .build()
-            .map_err(|e| McpTransportError::TransportError(format!("Failed to create HTTP client: {}", e)))?;
+            .map_err(|e| {
+                McpTransportError::TransportError(format!("Failed to create HTTP client: {}", e))
+            })?;
 
         Ok(Self {
             endpoint: endpoint.into(),
@@ -72,7 +77,9 @@ impl HttpTransport {
             .json(&request)
             .send()
             .await
-            .map_err(|e| McpTransportError::TransportError(format!("HTTP request failed: {}", e)))?;
+            .map_err(|e| {
+                McpTransportError::TransportError(format!("HTTP request failed: {}", e))
+            })?;
 
         if !response.status().is_success() {
             return Err(McpTransportError::TransportError(format!(
@@ -82,16 +89,16 @@ impl HttpTransport {
             )));
         }
 
-        let json_response: JsonRpcResponse = response
-            .json()
-            .await
-            .map_err(|e| McpTransportError::TransportError(format!("Failed to parse JSON response: {}", e)))?;
+        let json_response: JsonRpcResponse = response.json().await.map_err(|e| {
+            McpTransportError::TransportError(format!("Failed to parse JSON response: {}", e))
+        })?;
 
         match json_response.payload {
             JsonRpcPayload::Success { result } => Ok(result),
-            JsonRpcPayload::Error { error } => {
-                Err(McpTransportError::ServerError(format!("MCP Error: {}", error)))
-            }
+            JsonRpcPayload::Error { error } => Err(McpTransportError::ServerError(format!(
+                "MCP Error: {}",
+                error
+            ))),
         }
     }
 
@@ -127,7 +134,10 @@ impl HttpTransportAdapter {
     }
 
     /// Create with custom timeout.
-    pub fn with_timeout(endpoint: impl Into<String>, timeout: Duration) -> Result<Self, McpTransportError> {
+    pub fn with_timeout(
+        endpoint: impl Into<String>,
+        timeout: Duration,
+    ) -> Result<Self, McpTransportError> {
         Ok(Self {
             inner: HttpTransport::with_timeout(endpoint, timeout)?,
         })
@@ -145,7 +155,11 @@ impl McpTransport for HttpTransportAdapter {
 
         let list_result: ListToolsResult = serde_json::from_value(result)?;
 
-        Ok(list_result.tools.into_iter().map(ToolDefinition::from).collect())
+        Ok(list_result
+            .tools
+            .into_iter()
+            .map(ToolDefinition::from)
+            .collect())
     }
 
     async fn call_tool(&self, name: &str, args: Value) -> Result<Value, McpTransportError> {
@@ -208,10 +222,8 @@ mod tests {
 
     #[tokio::test]
     async fn test_http_transport_with_timeout() {
-        let transport = HttpTransport::with_timeout(
-            "http://localhost:8080/mcp",
-            Duration::from_secs(10),
-        );
+        let transport =
+            HttpTransport::with_timeout("http://localhost:8080/mcp", Duration::from_secs(10));
         assert!(transport.is_ok());
     }
 

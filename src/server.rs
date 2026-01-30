@@ -28,9 +28,10 @@ use std::sync::Arc;
 use serde_json::Value;
 
 use crate::protocol::{
-    JsonRpcId, JsonRpcRequest, JsonRpcResponse, McpCapabilities, McpServerInfo, MCP_PROTOCOL_VERSION,
+    JsonRpcId, JsonRpcRequest, JsonRpcResponse, McpCapabilities, McpServerInfo,
+    MCP_PROTOCOL_VERSION,
 };
-use crate::tool::{DynTool, McpTool, ToolProvider, ToolRegistry, ToolCallResult};
+use crate::tool::{DynTool, McpTool, ToolCallResult, ToolProvider, ToolRegistry};
 
 /// Server transport configuration.
 #[derive(Debug, Clone)]
@@ -486,12 +487,7 @@ impl McpServer {
         let name = match params.get("name").and_then(|n| n.as_str()) {
             Some(n) => n,
             None => {
-                return JsonRpcResponse::error(
-                    id,
-                    -32602,
-                    "Missing tool name".to_string(),
-                    None,
-                );
+                return JsonRpcResponse::error(id, -32602, "Missing tool name".to_string(), None);
             }
         };
 
@@ -567,18 +563,31 @@ async fn handle_rpc_request_static(
             let params = match request.params {
                 Some(p) => p,
                 None => {
-                    return JsonRpcResponse::error(request.id, -32602, "Missing params".to_string(), None);
+                    return JsonRpcResponse::error(
+                        request.id,
+                        -32602,
+                        "Missing params".to_string(),
+                        None,
+                    );
                 }
             };
 
             let tool_name = match params.get("name").and_then(|n| n.as_str()) {
                 Some(n) => n,
                 None => {
-                    return JsonRpcResponse::error(request.id, -32602, "Missing tool name".to_string(), None);
+                    return JsonRpcResponse::error(
+                        request.id,
+                        -32602,
+                        "Missing tool name".to_string(),
+                        None,
+                    );
                 }
             };
 
-            let arguments = params.get("arguments").cloned().unwrap_or(serde_json::json!({}));
+            let arguments = params
+                .get("arguments")
+                .cloned()
+                .unwrap_or(serde_json::json!({}));
             let result = registry.call(tool_name, arguments).await;
 
             match result {

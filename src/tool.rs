@@ -153,7 +153,10 @@ where
 {
     /// Creates a new function-based tool.
     pub fn new(definition: McpToolDef, handler: F) -> Self {
-        Self { definition, handler }
+        Self {
+            definition,
+            handler,
+        }
     }
 }
 
@@ -251,8 +254,8 @@ impl ToolRegistry {
 #[macro_export]
 macro_rules! fn_tool {
     ($name:expr, $desc:expr, $schema:tt, $handler:expr) => {{
-        use $crate::tool::FnTool;
         use $crate::protocol::McpToolDef;
+        use $crate::tool::FnTool;
 
         let definition = McpToolDef {
             name: $name.to_string(),
@@ -261,9 +264,7 @@ macro_rules! fn_tool {
             input_schema: serde_json::json!($schema),
         };
 
-        FnTool::new(definition, move |args| {
-            Box::pin($handler(args))
-        })
+        FnTool::new(definition, move |args| Box::pin($handler(args)))
     }};
 }
 

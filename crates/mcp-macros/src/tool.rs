@@ -81,11 +81,8 @@ pub fn mcp_tool_impl(attr: TokenStream, item: TokenStream) -> TokenStream {
     } else if let Ok(method) = parse2::<ImplItemFn>(item.clone()) {
         process_impl_method(method, attr_args)
     } else {
-        syn::Error::new_spanned(
-            item,
-            "mcp_tool can only be applied to functions or methods",
-        )
-        .to_compile_error()
+        syn::Error::new_spanned(item, "mcp_tool can only be applied to functions or methods")
+            .to_compile_error()
     }
 }
 
@@ -131,19 +128,19 @@ fn process_standalone_function(func: ItemFn, args: ToolArgs) -> TokenStream {
     let func_name = &func.sig.ident;
     let tool_name = args.name.unwrap_or_else(|| func_name.to_string());
     let description = &args.description;
-    
+
     // Generate group code - either Some("...".to_string()) or None
     let group_code = match &args.group {
         Some(g) => quote! { Some(#g.to_string()) },
         None => quote! { None },
     };
-    
+
     // Generate a PascalCase struct name from the function name
     let struct_name = format_ident!("{}Tool", to_pascal_case(&func_name.to_string()));
-    
+
     let params = extract_params(&func.sig.inputs.iter().collect::<Vec<_>>());
     let is_async = func.sig.asyncness.is_some();
-    
+
     // Generate the JSON schema properties
     let properties = generate_json_properties(&params);
     let required: Vec<&str> = params
@@ -151,7 +148,7 @@ fn process_standalone_function(func: ItemFn, args: ToolArgs) -> TokenStream {
         .filter(|p| p.required)
         .map(|p| p.name.as_str())
         .collect();
-    
+
     // Generate parameter extraction code
     let param_extractions: Vec<TokenStream> = params
         .iter()
@@ -159,7 +156,7 @@ fn process_standalone_function(func: ItemFn, args: ToolArgs) -> TokenStream {
             let param_name = &p.name;
             let param_ident = syn::Ident::new(&p.name, proc_macro2::Span::call_site());
             let ty = &p.ty;
-            
+
             if is_option_type(ty) {
                 quote! {
                     let #param_ident: #ty = __args
@@ -384,7 +381,7 @@ fn generate_json_properties(params: &[ParamInfo]) -> TokenStream {
             let name = &p.name;
             let ty_str = rust_type_to_json_type(&p.ty);
             let desc = p.description.as_deref().unwrap_or("");
-            
+
             if desc.is_empty() {
                 quote! { #name: { "type": #ty_str } }
             } else {
@@ -411,7 +408,8 @@ impl CollectedTool {
         let name = &self.name;
         let description = &self.description;
         let properties = self.generate_json_properties();
-        let required: Vec<&str> = self.params
+        let required: Vec<&str> = self
+            .params
             .iter()
             .filter(|p| p.required)
             .map(|p| p.name.as_str())
@@ -440,7 +438,7 @@ impl CollectedTool {
                 let name = &p.name;
                 let ty_str = rust_type_to_json_type(&p.ty);
                 let desc = p.description.as_deref().unwrap_or("");
-                
+
                 if desc.is_empty() {
                     quote! { #name: { "type": #ty_str } }
                 } else {
@@ -456,7 +454,7 @@ impl CollectedTool {
     pub fn generate_call_arm(&self) -> TokenStream {
         let name = &self.name;
         let method = &self.method_ident;
-        
+
         let param_extractions: Vec<TokenStream> = self
             .params
             .iter()
@@ -464,7 +462,7 @@ impl CollectedTool {
                 let param_name = &p.name;
                 let param_ident = syn::Ident::new(&p.name, proc_macro2::Span::call_site());
                 let ty = &p.ty;
-                
+
                 if is_option_type(ty) {
                     quote! {
                         let #param_ident: #ty = args

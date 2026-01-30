@@ -64,10 +64,10 @@
 #![cfg_attr(docsrs, feature(doc_cfg))]
 
 pub mod protocol;
-pub mod transport;
 pub mod result;
-pub mod tool;
 pub mod server;
+pub mod tool;
+pub mod transport;
 
 #[cfg(feature = "macros")]
 #[cfg_attr(docsrs, doc(cfg(feature = "macros")))]
@@ -89,17 +89,16 @@ pub mod hub;
 
 // Protocol types
 pub use protocol::{
-    CallToolParams, CallToolResult, JsonRpcError, JsonRpcId, JsonRpcPayload,
-    JsonRpcRequest, JsonRpcResponse, ListToolsParams, ListToolsResult,
-    McpCapabilities, McpServerInfo, McpToolDef, ToolContent, ToolDefinition,
-    ToolInputSchema, MCP_PROTOCOL_VERSION,
+    CallToolParams, CallToolResult, JsonRpcError, JsonRpcId, JsonRpcPayload, JsonRpcRequest,
+    JsonRpcResponse, ListToolsParams, ListToolsResult, McpCapabilities, McpServerInfo, McpToolDef,
+    ToolContent, ToolDefinition, ToolInputSchema, MCP_PROTOCOL_VERSION,
 };
 
 // Transport types
 pub use transport::{
     ClientInfo, InitializeCapabilities, InitializeParams, InitializeResult,
-    McpServerConnectionConfig, McpTransport, McpTransportError, ServerCapabilities,
-    ServerInfo, TransportTypeId,
+    McpServerConnectionConfig, McpTransport, McpTransportError, ServerCapabilities, ServerInfo,
+    TransportTypeId,
 };
 
 // Result types
@@ -116,7 +115,9 @@ pub use tool::{
 pub use inventory;
 
 // Server
-pub use server::{McpServer, McpServerConfig, McpServerConfigBuilder, ServerError, ServerTransport};
+pub use server::{
+    McpServer, McpServerConfig, McpServerConfigBuilder, ServerError, ServerTransport,
+};
 
 // Hub
 pub use hub::McpHub;

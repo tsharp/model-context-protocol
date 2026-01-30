@@ -123,13 +123,19 @@ mod tests {
     fn test_success_result() {
         let result = success_result("Operation completed");
         assert_eq!(result.is_error, Some(false));
-        assert!(result.content[0].as_text().unwrap().contains("Operation completed"));
+        assert!(result.content[0]
+            .as_text()
+            .unwrap()
+            .contains("Operation completed"));
     }
 
     #[test]
     fn test_error_result() {
         let result = error_result("Something went wrong");
         assert_eq!(result.is_error, Some(true));
-        assert!(result.content[0].as_text().unwrap().contains("Something went wrong"));
+        assert!(result.content[0]
+            .as_text()
+            .unwrap()
+            .contains("Something went wrong"));
     }
 }

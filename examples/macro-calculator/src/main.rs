@@ -80,17 +80,39 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Show the generated tools
     println!("Tools defined by macros:");
     for tool in calc.list_tools() {
-        println!("  - {}: {}", tool.name, tool.description.as_deref().unwrap_or(""));
+        println!(
+            "  - {}: {}",
+            tool.name,
+            tool.description.as_deref().unwrap_or("")
+        );
     }
 
     // Test calling tools directly
     println!("\n--- Direct calls ---");
-    println!("add(5, 3) = {:?}", calc.call_tool("add", serde_json::json!({"a": 5.0, "b": 3.0})));
-    println!("subtract(10, 4) = {:?}", calc.call_tool("subtract", serde_json::json!({"a": 10.0, "b": 4.0})));
-    println!("multiply(6, 7) = {:?}", calc.call_tool("multiply", serde_json::json!({"a": 6.0, "b": 7.0})));
-    println!("divide(20, 4) = {:?}", calc.call_tool("divide", serde_json::json!({"a": 20.0, "b": 4.0})));
-    println!("power(2, 8) = {:?}", calc.call_tool("power", serde_json::json!({"base": 2.0, "exponent": 8.0})));
-    println!("sqrt(144) = {:?}", calc.call_tool("sqrt", serde_json::json!({"n": 144.0})));
+    println!(
+        "add(5, 3) = {:?}",
+        calc.call_tool("add", serde_json::json!({"a": 5.0, "b": 3.0}))
+    );
+    println!(
+        "subtract(10, 4) = {:?}",
+        calc.call_tool("subtract", serde_json::json!({"a": 10.0, "b": 4.0}))
+    );
+    println!(
+        "multiply(6, 7) = {:?}",
+        calc.call_tool("multiply", serde_json::json!({"a": 6.0, "b": 7.0}))
+    );
+    println!(
+        "divide(20, 4) = {:?}",
+        calc.call_tool("divide", serde_json::json!({"a": 20.0, "b": 4.0}))
+    );
+    println!(
+        "power(2, 8) = {:?}",
+        calc.call_tool("power", serde_json::json!({"base": 2.0, "exponent": 8.0}))
+    );
+    println!(
+        "sqrt(144) = {:?}",
+        calc.call_tool("sqrt", serde_json::json!({"n": 144.0}))
+    );
 
     // Build an MCP server using the macro adapter
     println!("\n--- Using McpServerConfig builder ---");
@@ -108,14 +130,20 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Call tools via the registry
     println!("\n--- Server tool calls ---");
-    let result = config.registry().call("add", serde_json::json!({"a": 100.0, "b": 200.0})).await?;
+    let result = config
+        .registry()
+        .call("add", serde_json::json!({"a": 100.0, "b": 200.0}))
+        .await?;
     println!("add(100, 200) = {}", result[0].as_text().unwrap_or("error"));
 
-    let result = config.registry().call("sqrt", serde_json::json!({"n": 256.0})).await?;
+    let result = config
+        .registry()
+        .call("sqrt", serde_json::json!({"n": 256.0}))
+        .await?;
     println!("sqrt(256) = {}", result[0].as_text().unwrap_or("error"));
 
     println!("\n=== Example Complete ===");
-    
+
     // To run as a stdio server, uncomment:
     // McpServer::run(config).await?;
 
