@@ -34,7 +34,7 @@ jobs:
         run: |
           $result = ./scripts/Get-Version.ps1
           Write-Host "Building version: $($result.Version)"
-          ./scripts/Get-Version.ps1 -UpdateCargo
+          ./scripts/Get-Version.ps1 -UpdateCargo -TagOnly
 
       - name: Build
         run: cargo build --workspace --all-features
