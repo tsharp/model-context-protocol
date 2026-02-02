@@ -10,9 +10,7 @@ use std::time::Duration;
 use crate::circuit_breaker::CircuitBreakerStats;
 use crate::hub_common::HubConnections;
 use crate::protocol::McpToolDefinition;
-use crate::transport::{
-    McpServerConnectionConfig, McpTransport, McpTransportError,
-};
+use crate::transport::{McpServerConnectionConfig, McpTransport, McpTransportError};
 
 /// Central hub for MCP tool routing across multiple servers.
 ///
@@ -82,11 +80,13 @@ impl McpHub {
         config: McpServerConnectionConfig,
     ) -> Result<Arc<dyn McpTransport>, McpTransportError> {
         let conn = self.connections.connect(config).await?;
-        conn.get_transport().await.ok_or(McpTransportError::ConnectionClosed)
+        conn.get_transport()
+            .await
+            .ok_or(McpTransportError::ConnectionClosed)
     }
 
     /// Call a tool, automatically routing to the correct server.
-    /// 
+    ///
     /// Uses circuit breaker to prevent cascading failures - if a server is
     /// unhealthy, requests will be rejected immediately.
     pub async fn call_tool(&self, name: &str, args: Value) -> Result<Value, McpTransportError> {
@@ -104,15 +104,21 @@ impl McpHub {
     }
 
     /// Discover tools from all servers in parallel.
-    /// 
+    ///
     /// This is faster than sequential discovery when connecting to many servers.
-    pub async fn discover_tools_parallel(&self) -> Result<Vec<(String, McpToolDefinition)>, McpTransportError> {
-        self.connections.discover_tools_parallel(self.discovery_timeout).await
+    pub async fn discover_tools_parallel(
+        &self,
+    ) -> Result<Vec<(String, McpToolDefinition)>, McpTransportError> {
+        self.connections
+            .discover_tools_parallel(self.discovery_timeout)
+            .await
     }
 
     /// Populate the tool cache by querying all servers (parallel).
     pub async fn refresh_tool_cache(&self) -> Result<(), McpTransportError> {
-        self.connections.refresh_tools_parallel(self.discovery_timeout).await
+        self.connections
+            .refresh_tools_parallel(self.discovery_timeout)
+            .await
     }
 
     /// Shutdown all connected servers.
@@ -137,7 +143,9 @@ impl McpHub {
 
     /// Disconnect a specific server.
     pub async fn disconnect(&self, server_name: &str) -> Result<(), McpTransportError> {
-        let conn = self.connections.remove(server_name)
+        let conn = self
+            .connections
+            .remove(server_name)
             .ok_or_else(|| McpTransportError::ServerNotFound(server_name.to_string()))?;
 
         self.connections.clear_tools_for_server(server_name);
@@ -167,12 +175,12 @@ impl McpHub {
     pub fn server_for_tool(&self, tool_name: &str) -> Option<String> {
         self.connections.server_for_tool(tool_name)
     }
-    
+
     /// Get circuit breaker statistics for a server.
     pub fn circuit_breaker_stats(&self, server_name: &str) -> Option<CircuitBreakerStats> {
         self.connections.circuit_breaker_stats(server_name)
     }
-    
+
     /// Reset circuit breaker for a server (e.g., after manual recovery).
     pub fn reset_circuit_breaker(&self, server_name: &str) {
         self.connections.reset_circuit_breaker(server_name);

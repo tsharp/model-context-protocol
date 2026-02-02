@@ -49,19 +49,13 @@ fn subtract(
 
 /// Multiply two numbers.
 #[mcp_tool(description = "Multiply two numbers", group = "arithmetic")]
-fn multiply(
-    #[param("The first factor")] a: f64,
-    #[param("The second factor")] b: f64,
-) -> f64 {
+fn multiply(#[param("The first factor")] a: f64, #[param("The second factor")] b: f64) -> f64 {
     a * b
 }
 
 /// Divide the first number by the second.
 #[mcp_tool(description = "Divide first number by second", group = "arithmetic")]
-fn divide(
-    #[param("The dividend")] a: f64,
-    #[param("The divisor")] b: f64,
-) -> Result<f64, String> {
+fn divide(#[param("The dividend")] a: f64, #[param("The divisor")] b: f64) -> Result<f64, String> {
     if b == 0.0 {
         Err("Division by zero".to_string())
     } else {

@@ -356,7 +356,8 @@ impl McpServer {
 
     /// Stops the server gracefully.
     pub fn stop(&self) {
-        self.status.store(ServerStatus::Stopped as u8, Ordering::SeqCst);
+        self.status
+            .store(ServerStatus::Stopped as u8, Ordering::SeqCst);
     }
 
     /// Returns the server name.
@@ -396,9 +397,7 @@ impl McpServer {
         params: Option<Value>,
         timeout: std::time::Duration,
     ) -> Result<JsonRpcResponse, ServerError> {
-        let id = JsonRpcId::Number(
-            self.next_request_id.fetch_add(1, Ordering::SeqCst) as i64,
-        );
+        let id = JsonRpcId::Number(self.next_request_id.fetch_add(1, Ordering::SeqCst) as i64);
 
         let request = JsonRpcRequest {
             jsonrpc: "2.0".to_string(),
@@ -444,7 +443,8 @@ impl McpServer {
         method: impl Into<String>,
         params: Option<Value>,
     ) -> Result<JsonRpcResponse, ServerError> {
-        self.send_request(method, params, std::time::Duration::from_secs(30)).await
+        self.send_request(method, params, std::time::Duration::from_secs(30))
+            .await
     }
 
     /// Sends a notification to the client (no response expected).
@@ -520,14 +520,16 @@ impl McpServer {
                 Some(message) => {
                     if let Err(e) = self.handle_inbound(message).await {
                         // Set fault status
-                        self.status.store(ServerStatus::Faulted as u8, Ordering::SeqCst);
+                        self.status
+                            .store(ServerStatus::Faulted as u8, Ordering::SeqCst);
                         *self.fault_reason.write().await = Some(e.to_string());
                         break;
                     }
                 }
                 None => {
                     // Channel closed, stop gracefully
-                    self.status.store(ServerStatus::Stopped as u8, Ordering::SeqCst);
+                    self.status
+                        .store(ServerStatus::Stopped as u8, Ordering::SeqCst);
                     break;
                 }
             }
@@ -652,7 +654,10 @@ impl McpServer {
     }
 
     /// Handles a notification from the client.
-    async fn handle_notification(&self, notification: JsonRpcNotification) -> Result<(), ServerError> {
+    async fn handle_notification(
+        &self,
+        notification: JsonRpcNotification,
+    ) -> Result<(), ServerError> {
         match notification.method.as_str() {
             "notifications/cancelled" => {
                 // Cancellation is acknowledged but not yet implemented.

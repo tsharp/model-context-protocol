@@ -8,10 +8,7 @@ use quote::quote;
 use syn::{parse2, Attribute, FnArg, ImplItem, ItemImpl, ItemStruct, Lit, Meta};
 
 use crate::schema::is_option_type;
-use crate::tool::{
-    has_param_attr, parse_param_attrs, strip_param_attrs, CollectedTool,
-    ParamInfo,
-};
+use crate::tool::{has_param_attr, parse_param_attrs, strip_param_attrs, CollectedTool, ParamInfo};
 
 /// Arguments for `#[mcp_server]` on structs.
 #[derive(Debug, Default, FromMeta)]
@@ -67,13 +64,13 @@ fn process_struct(struct_item: ItemStruct, args: ServerArgs) -> TokenStream {
     let server_name = args
         .name
         .unwrap_or_else(|| struct_name.to_string().to_lowercase());
-    
+
     // Version is now optional - returns Option<&'static str>
     let version_impl = match args.version {
         Some(v) => quote! { Some(#v) },
         None => quote! { None },
     };
-    
+
     // Description is optional - returns Option<&'static str>
     let description_impl = match args.description {
         Some(d) => quote! { Some(#d) },
@@ -278,8 +275,7 @@ fn extract_params_from_sig(sig: &syn::Signature) -> Result<Vec<ParamInfo>, syn::
                 }
 
                 // Parse the #[param] attribute
-                let param_args = parse_param_attrs(&pat_type.attrs)
-                    .unwrap_or_default();
+                let param_args = parse_param_attrs(&pat_type.attrs).unwrap_or_default();
 
                 // Priority: explicit attr description > doc comment
                 let description = param_args.description.or_else(|| {
@@ -301,7 +297,8 @@ fn extract_params_from_sig(sig: &syn::Signature) -> Result<Vec<ParamInfo>, syn::
                 let param_name = param_args.name.unwrap_or(name);
 
                 // Use explicit required if provided, otherwise infer from Option<T>
-                let required = param_args.required
+                let required = param_args
+                    .required
                     .unwrap_or_else(|| !is_option_type(&pat_type.ty));
 
                 params.push(ParamInfo {

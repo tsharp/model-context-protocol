@@ -3,13 +3,13 @@
 //! Communicates with MCP servers via HTTP using JSON-RPC over POST requests.
 //! This is used to connect to MCP servers that expose an HTTP endpoint.
 
+use crate::protocol::*;
+use crate::transport::{McpTransport, McpTransportError, TransportTypeId};
 use async_trait::async_trait;
 use serde_json::Value;
 use std::sync::atomic::{AtomicI64, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
-use crate::protocol::*;
-use crate::transport::{McpTransport, McpTransportError, TransportTypeId};
 
 /// HTTP-based MCP transport for communicating with HTTP servers.
 pub struct HttpTransport {

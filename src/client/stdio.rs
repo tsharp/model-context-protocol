@@ -34,7 +34,7 @@ struct WriteRequest {
 }
 
 /// True async stdio transport using tokio::process.
-/// 
+///
 /// This implementation:
 /// - Uses `tokio::process::Command` for async process spawning
 /// - Separate tasks for reading stdout and writing to stdin
@@ -84,12 +84,14 @@ impl TokioStdioTransport {
         })?;
 
         // Take ownership of stdin and stdout
-        let stdin = child.stdin.take().ok_or_else(|| {
-            McpTransportError::TransportError("Failed to get stdin".to_string())
-        })?;
-        let stdout = child.stdout.take().ok_or_else(|| {
-            McpTransportError::TransportError("Failed to get stdout".to_string())
-        })?;
+        let stdin = child
+            .stdin
+            .take()
+            .ok_or_else(|| McpTransportError::TransportError("Failed to get stdin".to_string()))?;
+        let stdout = child
+            .stdout
+            .take()
+            .ok_or_else(|| McpTransportError::TransportError("Failed to get stdout".to_string()))?;
 
         let alive = Arc::new(AtomicBool::new(true));
         let pending: Arc<DashMap<i64, oneshot::Sender<Result<Value, McpTransportError>>>> =
@@ -153,7 +155,11 @@ impl TokioStdioTransport {
                                 }
                             }
                             Err(e) => {
-                                eprintln!("Failed to parse response: {} - line: {}", e, line.trim());
+                                eprintln!(
+                                    "Failed to parse response: {} - line: {}",
+                                    e,
+                                    line.trim()
+                                );
                             }
                         }
                     }
@@ -164,7 +170,7 @@ impl TokioStdioTransport {
                     }
                 }
             }
-            
+
             // Clean up pending requests on shutdown - receivers will get
             // a channel closed error when the senders are dropped
             pending_reader.clear();
@@ -200,7 +206,12 @@ impl TokioStdioTransport {
         self.pending.insert(id, tx);
 
         // Send write request
-        if self.write_tx.send(WriteRequest { request_line }).await.is_err() {
+        if self
+            .write_tx
+            .send(WriteRequest { request_line })
+            .await
+            .is_err()
+        {
             self.pending.remove(&id);
             return Err(McpTransportError::ConnectionClosed);
         }
@@ -230,7 +241,7 @@ impl TokioStdioTransport {
     /// Stop the transport and kill the process.
     pub async fn stop(&self) -> Result<(), McpTransportError> {
         self.alive.store(false, Ordering::SeqCst);
-        
+
         // Kill the child process
         let mut child = self.child.lock().await;
         if let Err(e) = child.kill().await {
@@ -242,7 +253,7 @@ impl TokioStdioTransport {
                 )));
             }
         }
-        
+
         Ok(())
     }
 }
@@ -252,7 +263,7 @@ impl TokioStdioTransport {
 // =============================================================================
 
 /// Async-friendly stdio transport with timeout support.
-/// 
+///
 /// This is now a wrapper around `TokioStdioTransport` for backwards compatibility.
 pub struct AsyncStdioTransport {
     inner: Arc<TokioStdioTransport>,
@@ -284,7 +295,9 @@ impl AsyncStdioTransport {
         params: Option<Value>,
         timeout_duration: Duration,
     ) -> Result<Value, McpTransportError> {
-        self.inner.send_request(method, params, timeout_duration).await
+        self.inner
+            .send_request(method, params, timeout_duration)
+            .await
     }
 
     /// Check if alive.

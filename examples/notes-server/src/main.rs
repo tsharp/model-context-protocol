@@ -12,7 +12,9 @@
 use std::collections::HashMap;
 use std::sync::{Arc, RwLock};
 
-use mcp::{BoxFuture, DynTool, McpTool, McpToolDefinition, ToolCallResult, ToolContent, ToolProvider};
+use mcp::{
+    BoxFuture, DynTool, McpTool, McpToolDefinition, ToolCallResult, ToolContent, ToolProvider,
+};
 use serde_json::Value;
 
 // =============================================================================

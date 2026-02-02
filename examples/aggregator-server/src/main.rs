@@ -111,7 +111,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         ],
     )
     .with_timeout(30)
-    .restart_on_failure();  // Auto-restart if the server crashes
+    .restart_on_failure(); // Auto-restart if the server crashes
 
     hub.connect(calc_config).await?;
 

@@ -53,7 +53,9 @@ impl McpStdioServer {
     pub async fn run(config: McpServerConfig) -> Result<(), ServerError> {
         let (server, mut channels) = McpServer::new(config);
 
-        let stdio_server = Self { server: Arc::clone(&server) };
+        let stdio_server = Self {
+            server: Arc::clone(&server),
+        };
 
         // Spawn stdout writer task
         let stdout_handle = tokio::spawn(async move {
@@ -120,7 +122,8 @@ impl McpStdioServer {
                                 format!("Parse error: {}", e),
                                 None,
                             );
-                            let outbound = crate::protocol::ServerOutbound::Response(error_response);
+                            let outbound =
+                                crate::protocol::ServerOutbound::Response(error_response);
                             if channels.outbound_tx.send(outbound).await.is_err() {
                                 // Channel closed, server stopped
                                 break;
@@ -166,7 +169,7 @@ mod tests {
     }
 
     /// Test that all outbound messages are synchronized through a single channel.
-    /// 
+    ///
     /// This test verifies that:
     /// 1. Parse errors are routed through the outbound channel (not directly to stdout)
     /// 2. Multiple concurrent messages maintain their order when sent through the channel
@@ -205,11 +208,11 @@ mod tests {
             }),
             tokio::spawn(async move {
                 for i in 20..30 {
-                    let notification = crate::protocol::JsonRpcNotification::new(
-                        format!("notify_{}", i),
-                        None,
-                    );
-                    tx3.send(ServerOutbound::Notification(notification)).await.unwrap();
+                    let notification =
+                        crate::protocol::JsonRpcNotification::new(format!("notify_{}", i), None);
+                    tx3.send(ServerOutbound::Notification(notification))
+                        .await
+                        .unwrap();
                 }
             }),
         ];
@@ -245,7 +248,7 @@ mod tests {
     }
 
     /// Test that the single-writer pattern prevents interleaving.
-    /// 
+    ///
     /// By using a single channel receiver that writes to output, we guarantee
     /// that messages are written atomically one at a time.
     #[tokio::test]
@@ -267,11 +270,16 @@ mod tests {
             while let Some(outbound) = outbound_rx.recv().await {
                 // Track concurrent writes
                 let current = concurrent_clone.fetch_add(1, Ordering::SeqCst) + 1;
-                
+
                 // Update max concurrent if this is higher
                 let mut max = max_clone.load(Ordering::SeqCst);
                 while current > max {
-                    match max_clone.compare_exchange(max, current, Ordering::SeqCst, Ordering::SeqCst) {
+                    match max_clone.compare_exchange(
+                        max,
+                        current,
+                        Ordering::SeqCst,
+                        Ordering::SeqCst,
+                    ) {
                         Ok(_) => break,
                         Err(m) => max = m,
                     }
@@ -279,7 +287,7 @@ mod tests {
 
                 // Simulate write operation
                 let _json = outbound.to_json().unwrap();
-                
+
                 // Small delay to increase chance of detecting concurrency issues
                 tokio::task::yield_now().await;
 
@@ -314,9 +322,9 @@ mod tests {
 
         // Verify all messages were written
         assert_eq!(write_count.load(Ordering::SeqCst), 50);
-        
+
         // The max concurrent writes should be 1 (single writer)
-        // Note: Due to the async nature, this might occasionally be 0 if 
+        // Note: Due to the async nature, this might occasionally be 0 if
         // the check happens between increment and actual write
         assert!(
             max_concurrent.load(Ordering::SeqCst) <= 1,

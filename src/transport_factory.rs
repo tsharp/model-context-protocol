@@ -9,7 +9,9 @@ use std::time::Duration;
 
 use crate::client::http::HttpTransportAdapter;
 use crate::client::stdio::StdioTransportAdapter;
-use crate::transport::{McpServerConnectionConfig, McpTransport, McpTransportError, TransportTypeId};
+use crate::transport::{
+    McpServerConnectionConfig, McpTransport, McpTransportError, TransportTypeId,
+};
 
 /// Factory for creating MCP transports from configuration.
 pub struct TransportFactory;
@@ -43,7 +45,7 @@ impl TransportFactory {
         })?;
 
         let timeout = Duration::from_secs(config.timeout_secs);
-        
+
         let transport = StdioTransportAdapter::connect_with_env(
             command,
             &config.args,
@@ -72,7 +74,10 @@ impl TransportFactory {
 
     /// Check if a transport type is supported.
     pub fn is_supported(transport_type: TransportTypeId) -> bool {
-        matches!(transport_type, TransportTypeId::Stdio | TransportTypeId::Http)
+        matches!(
+            transport_type,
+            TransportTypeId::Stdio | TransportTypeId::Http
+        )
     }
 
     /// List supported transport types.

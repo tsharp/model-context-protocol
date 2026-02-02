@@ -23,7 +23,7 @@ use actix_web::{web, App, HttpResponse, HttpServer};
 use tokio::sync::mpsc;
 
 use super::{McpServer, McpServerConfig, ServerError};
-use crate::protocol::{ClientInbound, JsonRpcMessage, JsonRpcResponse, JsonRpcId, ServerOutbound};
+use crate::protocol::{ClientInbound, JsonRpcId, JsonRpcMessage, JsonRpcResponse, ServerOutbound};
 
 /// Application state shared across HTTP handlers.
 struct AppState {
@@ -136,11 +136,9 @@ async fn handle_rpc(state: web::Data<AppState>, body: String) -> HttpResponse {
             let _ = state.inbound_tx.send(inbound).await;
             HttpResponse::NoContent().finish()
         }
-        JsonRpcMessage::Response(_) => {
-            HttpResponse::BadRequest().json(serde_json::json!({
-                "error": "Unexpected response message"
-            }))
-        }
+        JsonRpcMessage::Response(_) => HttpResponse::BadRequest().json(serde_json::json!({
+            "error": "Unexpected response message"
+        })),
     }
 }
 
@@ -241,7 +239,10 @@ async fn handle_tool_call(
     state: web::Data<AppState>,
     body: web::Json<CallToolRequest>,
 ) -> HttpResponse {
-    let result = state.server.call_tool(&body.name, body.arguments.clone()).await;
+    let result = state
+        .server
+        .call_tool(&body.name, body.arguments.clone())
+        .await;
 
     match result {
         Ok(content) => HttpResponse::Ok().json(content),

@@ -101,21 +101,28 @@ impl HubConnections {
     }
 
     /// Establish a connection to a server.
-    pub async fn connect(&self, config: McpServerConnectionConfig) -> Result<Arc<ManagedConnection>, McpTransportError> {
+    pub async fn connect(
+        &self,
+        config: McpServerConnectionConfig,
+    ) -> Result<Arc<ManagedConnection>, McpTransportError> {
         let server_name = config.name.clone();
         let connection = Arc::new(ManagedConnection::new(config));
-        
+
         // Establish initial connection
         self.establish_connection(&connection).await?;
-        
+
         // Store connection
-        self.connections.insert(server_name, Arc::clone(&connection));
-        
+        self.connections
+            .insert(server_name, Arc::clone(&connection));
+
         Ok(connection)
     }
 
     /// Establish or re-establish a connection.
-    pub async fn establish_connection(&self, conn: &ManagedConnection) -> Result<(), McpTransportError> {
+    pub async fn establish_connection(
+        &self,
+        conn: &ManagedConnection,
+    ) -> Result<(), McpTransportError> {
         let config = &conn.config;
         let server_name = config.name.clone();
 
@@ -128,7 +135,8 @@ impl HubConnections {
         // Remove old tools for this server, then add new ones
         self.tool_cache.retain(|_, (srv, _)| srv != &server_name);
         for tool in tools {
-            self.tool_cache.insert(tool.name.clone(), (server_name.clone(), Some(tool)));
+            self.tool_cache
+                .insert(tool.name.clone(), (server_name.clone(), Some(tool)));
         }
 
         // Store transport
@@ -154,7 +162,9 @@ impl HubConnections {
 
     /// Get tool definition by name.
     pub fn get_tool_definition(&self, tool_name: &str) -> Option<McpToolDefinition> {
-        self.tool_cache.get(tool_name).and_then(|r| r.value().1.clone())
+        self.tool_cache
+            .get(tool_name)
+            .and_then(|r| r.value().1.clone())
     }
 
     /// List all server names.
@@ -164,14 +174,16 @@ impl HubConnections {
 
     /// List all tools with their server names.
     pub fn list_tools(&self) -> Vec<(String, McpToolDefinition)> {
-        self.tool_cache.iter()
+        self.tool_cache
+            .iter()
             .filter_map(|r| r.value().1.clone().map(|def| (r.value().0.clone(), def)))
             .collect()
     }
 
     /// List all tool definitions.
     pub fn list_tool_definitions(&self) -> Vec<McpToolDefinition> {
-        self.tool_cache.iter()
+        self.tool_cache
+            .iter()
             .filter_map(|r| r.value().1.clone())
             .collect()
     }
@@ -194,15 +206,19 @@ impl HubConnections {
 
     /// Iterate over all connections.
     pub fn iter(&self) -> impl Iterator<Item = (String, Arc<ManagedConnection>)> + '_ {
-        self.connections.iter().map(|r| (r.key().clone(), r.value().clone()))
+        self.connections
+            .iter()
+            .map(|r| (r.key().clone(), r.value().clone()))
     }
 
     /// Call a tool with circuit breaker and failure handling.
     pub async fn call_tool(&self, name: &str, args: Value) -> Result<Value, McpTransportError> {
-        let server_name = self.server_for_tool(name)
+        let server_name = self
+            .server_for_tool(name)
             .ok_or_else(|| McpTransportError::UnknownTool(name.to_string()))?;
 
-        let connection = self.get(&server_name)
+        let connection = self
+            .get(&server_name)
             .ok_or_else(|| McpTransportError::ServerNotFound(server_name.clone()))?;
 
         // Check circuit breaker
@@ -216,7 +232,9 @@ impl HubConnections {
         // Subscribe to failure notifications before getting transport
         let mut failure_rx = connection.subscribe_failures();
 
-        let transport = connection.get_transport().await
+        let transport = connection
+            .get_transport()
+            .await
             .ok_or(McpTransportError::ConnectionClosed)?;
 
         // Race between the actual tool call and a failure notification
@@ -237,49 +255,64 @@ impl HubConnections {
     }
 
     /// Discover tools from all servers in parallel.
-    /// 
+    ///
     /// This is much faster than sequential discovery when connecting to many servers.
-    pub async fn discover_tools_parallel(&self, timeout: Duration) -> Result<Vec<(String, McpToolDefinition)>, McpTransportError> {
+    pub async fn discover_tools_parallel(
+        &self,
+        timeout: Duration,
+    ) -> Result<Vec<(String, McpToolDefinition)>, McpTransportError> {
         let connections: Vec<_> = self.iter().collect();
-        
+
         // Create futures for each server's tool discovery
-        let futures: Vec<_> = connections.into_iter().map(|(server_name, conn)| {
-            let server_name = server_name.clone();
-            async move {
-                let result = tokio::time::timeout(timeout, async {
-                    if let Some(transport) = conn.get_transport().await {
-                        transport.list_tools().await
-                    } else {
-                        Err(McpTransportError::ConnectionClosed)
+        let futures: Vec<_> = connections
+            .into_iter()
+            .map(|(server_name, conn)| {
+                let server_name = server_name.clone();
+                async move {
+                    let result = tokio::time::timeout(timeout, async {
+                        if let Some(transport) = conn.get_transport().await {
+                            transport.list_tools().await
+                        } else {
+                            Err(McpTransportError::ConnectionClosed)
+                        }
+                    })
+                    .await;
+
+                    match result {
+                        Ok(Ok(tools)) => (server_name, Ok(tools)),
+                        Ok(Err(e)) => (server_name, Err(e)),
+                        Err(_) => (
+                            server_name.clone(),
+                            Err(McpTransportError::Timeout(format!(
+                                "Tool discovery for '{}' timed out",
+                                server_name
+                            ))),
+                        ),
                     }
-                }).await;
-                
-                match result {
-                    Ok(Ok(tools)) => (server_name, Ok(tools)),
-                    Ok(Err(e)) => (server_name, Err(e)),
-                    Err(_) => (server_name.clone(), Err(McpTransportError::Timeout(
-                        format!("Tool discovery for '{}' timed out", server_name)
-                    ))),
                 }
-            }
-        }).collect();
+            })
+            .collect();
 
         // Run all discoveries in parallel
         let results = join_all(futures).await;
 
         // Collect results and update cache
         let mut all_tools = Vec::new();
-        
+
         for (server_name, result) in results {
             match result {
                 Ok(tools) => {
                     for tool in tools {
-                        self.tool_cache.insert(tool.name.clone(), (server_name.clone(), Some(tool.clone())));
+                        self.tool_cache
+                            .insert(tool.name.clone(), (server_name.clone(), Some(tool.clone())));
                         all_tools.push((server_name.clone(), tool));
                     }
                 }
                 Err(e) => {
-                    eprintln!("Warning: Failed to discover tools from '{}': {}", server_name, e);
+                    eprintln!(
+                        "Warning: Failed to discover tools from '{}': {}",
+                        server_name, e
+                    );
                 }
             }
         }
@@ -311,7 +344,10 @@ impl HubConnections {
     }
 
     /// Get circuit breaker statistics for a server.
-    pub fn circuit_breaker_stats(&self, server_name: &str) -> Option<crate::circuit_breaker::CircuitBreakerStats> {
+    pub fn circuit_breaker_stats(
+        &self,
+        server_name: &str,
+    ) -> Option<crate::circuit_breaker::CircuitBreakerStats> {
         self.get(server_name).map(|c| c.circuit_breaker.stats())
     }
 

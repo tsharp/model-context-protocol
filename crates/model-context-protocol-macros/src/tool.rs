@@ -400,18 +400,19 @@ fn extract_params(inputs: &[&FnArg]) -> Vec<ParamInfo> {
                 }
 
                 // Parse the #[param] attribute
-                let param_args = parse_param_attrs(&pat_type.attrs)
-                    .unwrap_or_default();
+                let param_args = parse_param_attrs(&pat_type.attrs).unwrap_or_default();
 
                 // Priority: explicit attr > doc comment
-                let description = param_args.description
+                let description = param_args
+                    .description
                     .or_else(|| extract_doc_comment(&pat_type.attrs));
 
                 // Use custom name if provided, otherwise use argument name
                 let param_name = param_args.name.unwrap_or(name);
 
                 // Use explicit required if provided, otherwise infer from Option<T>
-                let required = param_args.required
+                let required = param_args
+                    .required
                     .unwrap_or_else(|| !is_option_type(&pat_type.ty));
 
                 params.push(ParamInfo {

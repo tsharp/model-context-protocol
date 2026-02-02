@@ -28,7 +28,11 @@ use mcp::{MacroServer, MacroServerAdapter, McpServerConfig};
 // =============================================================================
 
 /// A simple calculator MCP server.
-#[mcp_server(name = "calculator", version = "1.0.0", description = "A simple calculator MCP server that performs basic arithmetic operations")]
+#[mcp_server(
+    name = "calculator",
+    version = "1.0.0",
+    description = "A simple calculator MCP server that performs basic arithmetic operations"
+)]
 pub struct Calculator;
 
 #[mcp_server]
@@ -127,7 +131,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             tool.name,
             tool.description.as_deref().unwrap_or("")
         );
-        println!("    Schema: {}", serde_json::to_string_pretty(&tool.input_schema).unwrap());
+        println!(
+            "    Schema: {}",
+            serde_json::to_string_pretty(&tool.input_schema).unwrap()
+        );
     }
 
     // Test calling tools directly

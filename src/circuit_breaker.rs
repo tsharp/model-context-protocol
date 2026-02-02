@@ -3,9 +3,9 @@
 //! Implements a simple circuit breaker that tracks failures and prevents
 //! cascading failures by temporarily blocking requests to unhealthy servers.
 
+use parking_lot::RwLock;
 use std::sync::atomic::{AtomicU32, AtomicU64, Ordering};
 use std::time::{Duration, Instant};
-use parking_lot::RwLock;
 
 /// Circuit breaker states
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -76,13 +76,13 @@ impl CircuitBreaker {
     }
 
     /// Check if a request should be allowed
-    /// 
+    ///
     /// Returns `true` if the request can proceed, `false` if it should be blocked.
     pub fn allow_request(&self) -> bool {
         self.total_requests.fetch_add(1, Ordering::Relaxed);
-        
+
         let current_state = *self.state.read();
-        
+
         match current_state {
             CircuitState::Closed => true,
             CircuitState::Open => {
@@ -107,7 +107,7 @@ impl CircuitBreaker {
     /// Record a successful request
     pub fn record_success(&self) {
         let current_state = *self.state.read();
-        
+
         match current_state {
             CircuitState::Closed => {
                 // Reset failure count on success
@@ -132,9 +132,9 @@ impl CircuitBreaker {
     pub fn record_failure(&self) {
         self.total_failures.fetch_add(1, Ordering::Relaxed);
         *self.last_failure_time.write() = Some(Instant::now());
-        
+
         let current_state = *self.state.read();
-        
+
         match current_state {
             CircuitState::Closed => {
                 let failures = self.failure_count.fetch_add(1, Ordering::Relaxed) + 1;
@@ -207,11 +207,11 @@ mod tests {
             ..Default::default()
         };
         let cb = CircuitBreaker::with_config(config);
-        
+
         cb.record_failure();
         cb.record_failure();
         assert_eq!(cb.state(), CircuitState::Closed);
-        
+
         cb.record_failure();
         assert_eq!(cb.state(), CircuitState::Open);
         assert!(!cb.allow_request());
@@ -224,13 +224,13 @@ mod tests {
             ..Default::default()
         };
         let cb = CircuitBreaker::with_config(config);
-        
+
         cb.record_failure();
         cb.record_failure();
         cb.record_success();
         cb.record_failure();
         cb.record_failure();
-        
+
         assert_eq!(cb.state(), CircuitState::Closed);
     }
 
@@ -241,10 +241,10 @@ mod tests {
             ..Default::default()
         };
         let cb = CircuitBreaker::with_config(config);
-        
+
         cb.record_failure();
         assert_eq!(cb.state(), CircuitState::Open);
-        
+
         cb.reset();
         assert_eq!(cb.state(), CircuitState::Closed);
         assert!(cb.allow_request());

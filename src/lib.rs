@@ -109,34 +109,75 @@ pub use protocol::{
 // Protocol types (2025-11-25 - new)
 pub use protocol::{
     // Core types
-    Annotations, BaseMetadata, Icon, IconTheme, Implementation, Role,
-    // Tool types
-    TaskSupport, ToolAnnotations, ToolExecution,
-    // Task types
-    CancelTaskParams, CreateTaskResult, GetTaskParams, GetTaskPayloadParams, ListTasksParams,
-    ListTasksResult, RelatedTaskMetadata, Task, TaskMetadata, TaskStatus, TaskStatusNotificationParams,
+    Annotations,
+    BaseMetadata,
     // Elicitation types
-    BooleanSchema, ElicitAction, ElicitationCompleteParams, ElicitRequestFormParams, ElicitRequestParams,
-    ElicitRequestUrlParams, ElicitResult, NumberSchema, StringSchema, StringSchemaFormat,
-    // Sampling types
-    CreateMessageParams, CreateMessageResult, ModelHint, ModelPreferences, SamplingContent,
-    SamplingMessage, ToolChoice, ToolChoiceMode, ToolResultContent, ToolUseContent,
-    // Logging types
-    LoggingLevel, LoggingMessageParams, SetLevelParams,
-    // Progress types
-    ProgressNotificationParams, ProgressToken,
-    // Roots types
-    ListRootsResult, Root,
+    BooleanSchema,
+    // Task types
+    CancelTaskParams,
     // Completion types
-    CompleteArgument, CompleteContext, CompleteParams, CompleteResult, CompletionData,
-    PromptReference, ResourceTemplateReference,
+    CompleteArgument,
+    CompleteContext,
+    CompleteParams,
+    CompleteResult,
+    CompletionData,
+    // Sampling types
+    CreateMessageParams,
+    CreateMessageResult,
+    CreateTaskResult,
+    ElicitAction,
+    ElicitRequestFormParams,
+    ElicitRequestParams,
+    ElicitRequestUrlParams,
+    ElicitResult,
+    ElicitationCompleteParams,
+    GetTaskParams,
+    GetTaskPayloadParams,
+    Icon,
+    IconTheme,
+    Implementation,
+    // Roots types
+    ListRootsResult,
+    ListTasksParams,
+    ListTasksResult,
+    // Logging types
+    LoggingLevel,
+    LoggingMessageParams,
+    ModelHint,
+    ModelPreferences,
+    NumberSchema,
+    // Progress types
+    ProgressNotificationParams,
+    ProgressToken,
+    PromptReference,
+    RelatedTaskMetadata,
+    ResourceTemplateReference,
+    Role,
+    Root,
+    SamplingContent,
+    SamplingMessage,
+    SetLevelParams,
+    StringSchema,
+    StringSchemaFormat,
+    Task,
+    TaskMetadata,
+    TaskStatus,
+    TaskStatusNotificationParams,
+    // Tool types
+    TaskSupport,
+    ToolAnnotations,
+    ToolChoice,
+    ToolChoiceMode,
+    ToolExecution,
+    ToolResultContent,
+    ToolUseContent,
 };
 
 // Transport types
 pub use transport::{
     ClientInfo, InitializeCapabilities, InitializeParams, InitializeResult,
-    McpServerConnectionConfig, McpTransport, McpTransportError, RestartPolicy,
-    ServerCapabilities, ServerInfo, TransportTypeId,
+    McpServerConnectionConfig, McpTransport, McpTransportError, RestartPolicy, ServerCapabilities,
+    ServerInfo, TransportTypeId,
 };
 
 // Transport types (2025-11-25 - new capabilities)
@@ -160,7 +201,8 @@ pub use inventory;
 
 // Server (core)
 pub use server::{
-    McpServer, McpServerChannels, McpServerConfig, McpServerConfigBuilder, ServerError, ServerStatus,
+    McpServer, McpServerChannels, McpServerConfig, McpServerConfigBuilder, ServerError,
+    ServerStatus,
 };
 
 // Server transports

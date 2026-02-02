@@ -117,11 +117,7 @@ impl McpServerHub {
     }
 
     /// Monitor a connection and restart on failure.
-    async fn restart_monitor(
-        &self,
-        name: String,
-        conn: Arc<crate::hub_common::ManagedConnection>,
-    ) {
+    async fn restart_monitor(&self, name: String, conn: Arc<crate::hub_common::ManagedConnection>) {
         let policy = &conn.config.restart_policy;
 
         loop {
@@ -170,7 +166,10 @@ impl McpServerHub {
                 name,
                 delay,
                 attempt + 1,
-                policy.max_attempts.map(|m| m.to_string()).unwrap_or_else(|| "∞".into())
+                policy
+                    .max_attempts
+                    .map(|m| m.to_string())
+                    .unwrap_or_else(|| "∞".into())
             );
 
             tokio::time::sleep(Duration::from_millis(delay)).await;
@@ -187,7 +186,10 @@ impl McpServerHub {
                     conn.restart_count.store(0, Ordering::SeqCst);
                 }
                 Err(e) => {
-                    eprintln!("[McpServerHub] Server '{}' failed to reconnect: {}", name, e);
+                    eprintln!(
+                        "[McpServerHub] Server '{}' failed to reconnect: {}",
+                        name, e
+                    );
                 }
             }
         }
@@ -201,7 +203,7 @@ impl McpServerHub {
     }
 
     /// Call a tool by name, routing to the correct server.
-    /// 
+    ///
     /// If the server restarts while a request is pending, the request will
     /// immediately fail with a `ServerRestarting` error rather than timing out.
     /// Uses circuit breaker to prevent cascading failures.
@@ -220,7 +222,9 @@ impl McpServerHub {
     }
 
     /// Discover tools from all servers in parallel.
-    pub async fn discover_tools_parallel(&self) -> Result<Vec<(String, McpToolDefinition)>, McpTransportError> {
+    pub async fn discover_tools_parallel(
+        &self,
+    ) -> Result<Vec<(String, McpToolDefinition)>, McpTransportError> {
         self.connections.discover_tools_parallel(self.timeout).await
     }
 
@@ -260,7 +264,9 @@ impl McpServerHub {
 
     /// Disconnect a specific server (stops restart monitor).
     pub async fn disconnect(&self, server_name: &str) -> Result<(), McpTransportError> {
-        let connection = self.connections.remove(server_name)
+        let connection = self
+            .connections
+            .remove(server_name)
             .ok_or_else(|| McpTransportError::ServerNotFound(server_name.to_string()))?;
 
         // Signal shutdown to restart monitor
@@ -302,7 +308,9 @@ impl McpServerHub {
     /// This creates proxy tools that route calls to the connected external servers.
     pub fn into_config(self, version: &str) -> McpServerConfig {
         let hub = Arc::new(self);
-        let provider = HubToolProvider { hub: Arc::clone(&hub) };
+        let provider = HubToolProvider {
+            hub: Arc::clone(&hub),
+        };
 
         McpServerConfig::builder()
             .name(&hub.name)
@@ -315,7 +323,9 @@ impl McpServerHub {
     ///
     /// Use this when you need to keep a reference to the hub for direct access.
     pub fn to_config(self: &Arc<Self>, version: &str) -> McpServerConfig {
-        let provider = HubToolProvider { hub: Arc::clone(self) };
+        let provider = HubToolProvider {
+            hub: Arc::clone(self),
+        };
 
         McpServerConfig::builder()
             .name(&self.name)
@@ -336,12 +346,17 @@ impl McpServerHub {
     ///     .build();
     /// ```
     pub fn proxy_tools(self: &Arc<Self>) -> Vec<DynTool> {
-        let provider = HubToolProvider { hub: Arc::clone(self) };
+        let provider = HubToolProvider {
+            hub: Arc::clone(self),
+        };
         provider.tools()
     }
 
     /// Get circuit breaker statistics for a server.
-    pub fn circuit_breaker_stats(&self, server_name: &str) -> Option<crate::circuit_breaker::CircuitBreakerStats> {
+    pub fn circuit_breaker_stats(
+        &self,
+        server_name: &str,
+    ) -> Option<crate::circuit_breaker::CircuitBreakerStats> {
         self.connections.circuit_breaker_stats(server_name)
     }
 
@@ -358,7 +373,9 @@ struct HubToolProvider {
 
 impl ToolProvider for HubToolProvider {
     fn tools(&self) -> Vec<DynTool> {
-        self.hub.connections.list_tools()
+        self.hub
+            .connections
+            .list_tools()
             .into_iter()
             .map(|(_, def)| {
                 let tool: DynTool = Arc::new(ProxyTool {

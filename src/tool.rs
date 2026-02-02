@@ -215,7 +215,7 @@ impl ToolRegistry {
     }
 
     /// Returns all tool definitions (cached).
-    /// 
+    ///
     /// Uses an Arc-wrapped cache to minimize cloning overhead.
     /// Returns a clone of the Arc, so iterating is efficient.
     pub fn definitions(&self) -> Vec<McpToolDefinition> {
@@ -226,7 +226,7 @@ impl ToolRegistry {
                 return defs.clone();
             }
         }
-        
+
         // Build and cache definitions
         let defs: Vec<McpToolDefinition> = self.tools.values().map(|t| t.definition()).collect();
         *self.definitions_cache.write() = Some(defs.clone());
@@ -234,7 +234,7 @@ impl ToolRegistry {
     }
 
     /// Returns an iterator over tool definitions without cloning.
-    /// 
+    ///
     /// More efficient than `definitions()` when you only need to iterate.
     pub fn definitions_iter(&self) -> impl Iterator<Item = McpToolDefinition> + '_ {
         self.tools.values().map(|t| t.definition())
