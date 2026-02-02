@@ -222,10 +222,8 @@ fn parse_tool_meta_attr(attr: &Attribute, default_name: &str) -> (String, String
     let mut description = String::new();
 
     // Try shorthand first: #[mcp_tool("description")]
-    if let Ok(lit) = attr.parse_args::<Lit>() {
-        if let Lit::Str(s) = lit {
-            return (name, s.value());
-        }
+    if let Ok(Lit::Str(s)) = attr.parse_args::<Lit>() {
+        return (name, s.value());
     }
 
     // Try to parse the full form: #[mcp_tool(description = "...", name = "...")]

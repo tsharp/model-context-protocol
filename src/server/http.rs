@@ -103,7 +103,7 @@ impl McpHttpServer {
         .map_err(|e| ServerError::Io(std::io::Error::new(std::io::ErrorKind::AddrInUse, e)))?
         .run()
         .await
-        .map_err(|e| ServerError::Io(std::io::Error::new(std::io::ErrorKind::Other, e)))
+        .map_err(|e| ServerError::Io(std::io::Error::other(e)))
     }
 }
 

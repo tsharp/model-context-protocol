@@ -91,11 +91,10 @@ struct NotesCreateTool {
 
 impl McpTool for NotesCreateTool {
     fn definition(&self) -> McpToolDefinition {
-        McpToolDefinition {
-            name: "notes_create".to_string(),
-            description: Some("Create a new note".to_string()),
-            group: Some("notes".to_string()),
-            input_schema: serde_json::json!({
+        McpToolDefinition::new("notes_create")
+            .with_description("Create a new note")
+            .with_group("notes")
+            .with_schema(serde_json::json!({
                 "type": "object",
                 "properties": {
                     "id": { "type": "string", "description": "Unique note ID" },
@@ -108,8 +107,7 @@ impl McpTool for NotesCreateTool {
                     }
                 },
                 "required": ["id", "title", "content"]
-            }),
-        }
+            }))
     }
 
     fn call<'a>(&'a self, args: Value) -> BoxFuture<'a, ToolCallResult> {
@@ -150,18 +148,16 @@ struct NotesReadTool {
 
 impl McpTool for NotesReadTool {
     fn definition(&self) -> McpToolDefinition {
-        McpToolDefinition {
-            name: "notes_read".to_string(),
-            description: Some("Read a note by ID".to_string()),
-            group: Some("notes".to_string()),
-            input_schema: serde_json::json!({
+        McpToolDefinition::new("notes_read")
+            .with_description("Read a note by ID")
+            .with_group("notes")
+            .with_schema(serde_json::json!({
                 "type": "object",
                 "properties": {
                     "id": { "type": "string", "description": "Note ID to read" }
                 },
                 "required": ["id"]
-            }),
-        }
+            }))
     }
 
     fn call<'a>(&'a self, args: Value) -> BoxFuture<'a, ToolCallResult> {
@@ -190,17 +186,15 @@ struct NotesListTool {
 
 impl McpTool for NotesListTool {
     fn definition(&self) -> McpToolDefinition {
-        McpToolDefinition {
-            name: "notes_list".to_string(),
-            description: Some("List all notes, optionally filtered by tag".to_string()),
-            group: Some("notes".to_string()),
-            input_schema: serde_json::json!({
+        McpToolDefinition::new("notes_list")
+            .with_description("List all notes, optionally filtered by tag")
+            .with_group("notes")
+            .with_schema(serde_json::json!({
                 "type": "object",
                 "properties": {
                     "tag": { "type": "string", "description": "Optional tag to filter by" }
                 }
-            }),
-        }
+            }))
     }
 
     fn call<'a>(&'a self, args: Value) -> BoxFuture<'a, ToolCallResult> {
@@ -238,18 +232,16 @@ struct NotesDeleteTool {
 
 impl McpTool for NotesDeleteTool {
     fn definition(&self) -> McpToolDefinition {
-        McpToolDefinition {
-            name: "notes_delete".to_string(),
-            description: Some("Delete a note by ID".to_string()),
-            group: Some("notes".to_string()),
-            input_schema: serde_json::json!({
+        McpToolDefinition::new("notes_delete")
+            .with_description("Delete a note by ID")
+            .with_group("notes")
+            .with_schema(serde_json::json!({
                 "type": "object",
                 "properties": {
                     "id": { "type": "string", "description": "Note ID to delete" }
                 },
                 "required": ["id"]
-            }),
-        }
+            }))
     }
 
     fn call<'a>(&'a self, args: Value) -> BoxFuture<'a, ToolCallResult> {
@@ -274,18 +266,16 @@ struct NotesSearchTool {
 
 impl McpTool for NotesSearchTool {
     fn definition(&self) -> McpToolDefinition {
-        McpToolDefinition {
-            name: "notes_search".to_string(),
-            description: Some("Search notes by content".to_string()),
-            group: Some("notes".to_string()),
-            input_schema: serde_json::json!({
+        McpToolDefinition::new("notes_search")
+            .with_description("Search notes by content")
+            .with_group("notes")
+            .with_schema(serde_json::json!({
                 "type": "object",
                 "properties": {
                     "query": { "type": "string", "description": "Search query" }
                 },
                 "required": ["query"]
-            }),
-        }
+            }))
     }
 
     fn call<'a>(&'a self, args: Value) -> BoxFuture<'a, ToolCallResult> {

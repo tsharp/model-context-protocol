@@ -217,7 +217,7 @@ impl HubConnections {
         let mut failure_rx = connection.subscribe_failures();
 
         let transport = connection.get_transport().await
-            .ok_or_else(|| McpTransportError::ConnectionClosed)?;
+            .ok_or(McpTransportError::ConnectionClosed)?;
 
         // Race between the actual tool call and a failure notification
         let result = tokio::select! {

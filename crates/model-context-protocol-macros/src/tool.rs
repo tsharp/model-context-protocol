@@ -78,14 +78,12 @@ pub fn parse_param_attrs(attrs: &[syn::Attribute]) -> Option<ToolParamArgs> {
     for attr in attrs {
         if attr.path().is_ident("param") {
             // Handle shorthand: #[param("description")]
-            if let Ok(lit) = attr.parse_args::<Lit>() {
-                if let Lit::Str(s) = lit {
-                    return Some(ToolParamArgs {
-                        description: Some(s.value()),
-                        name: None,
-                        required: None,
-                    });
-                }
+            if let Ok(Lit::Str(s)) = attr.parse_args::<Lit>() {
+                return Some(ToolParamArgs {
+                    description: Some(s.value()),
+                    name: None,
+                    required: None,
+                });
             }
             // Handle full form: #[param(description = "...", ...)]
             // Parse using darling directly from the attribute meta
@@ -147,14 +145,12 @@ fn parse_tool_args(attr: TokenStream) -> Result<ToolArgs, syn::Error> {
     }
 
     // Try shorthand first: #[mcp_tool("description")]
-    if let Ok(lit) = parse2::<Lit>(attr.clone()) {
-        if let Lit::Str(s) = lit {
-            return Ok(ToolArgs {
-                description: s.value(),
-                name: None,
-                group: None,
-            });
-        }
+    if let Ok(Lit::Str(s)) = parse2::<Lit>(attr.clone()) {
+        return Ok(ToolArgs {
+            description: s.value(),
+            name: None,
+            group: None,
+        });
     }
 
     // Full form: #[mcp_tool(description = "...", name = "...", group = "...")]
