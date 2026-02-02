@@ -264,8 +264,6 @@ async fn handle_health(state: web::Data<AppState>) -> HttpResponse {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-
     #[test]
     fn test_http_server_module_exists() {
         // Basic module existence test
