@@ -6,7 +6,7 @@ publish = false
 description = "Calculator MCP server example using stdio transport"
 
 [dependencies]
-mcp = { path = "../..", package = "model-context-protocol" }
+mcp = { path = "../..", package = "model-context-protocol", features = ["stdio-server"] }
 model-context-protocol-macros = { path = "../../crates/model-context-protocol-macros" }
 tokio = { version = "1.0", features = ["full"] }
 serde_json = "1.0"

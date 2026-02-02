@@ -9,7 +9,7 @@ use std::sync::Arc;
 
 use serde_json::Value;
 
-use crate::protocol::{McpToolDef, ToolContent};
+use crate::protocol::{McpToolDefinition, ToolContent};
 
 /// A boxed future for async tool execution.
 pub type BoxFuture<'a, T> = Pin<Box<dyn Future<Output = T> + Send + 'a>>;
@@ -69,16 +69,17 @@ pub fn tools_in_group(group: &str) -> Vec<DynTool> {
 /// # Example
 ///
 /// ```ignore
-/// use mcp::{McpTool, ToolCallResult, McpToolDef};
+/// use mcp::{McpTool, ToolCallResult, McpToolDefinition};
 /// use serde_json::Value;
 ///
 /// struct CalculatorTool;
 ///
 /// impl McpTool for CalculatorTool {
-///     fn definition(&self) -> McpToolDef {
-///         McpToolDef {
+///     fn definition(&self) -> McpToolDefinition {
+///         McpToolDefinition {
 ///             name: "add".to_string(),
 ///             description: Some("Add two numbers".to_string()),
+///             group: None,
 ///             input_schema: serde_json::json!({
 ///                 "type": "object",
 ///                 "properties": {
@@ -101,7 +102,7 @@ pub fn tools_in_group(group: &str) -> Vec<DynTool> {
 /// ```
 pub trait McpTool: Send + Sync {
     /// Returns the tool definition (name, description, input schema).
-    fn definition(&self) -> McpToolDef;
+    fn definition(&self) -> McpToolDefinition;
 
     /// Executes the tool with the given arguments.
     fn call<'a>(&'a self, args: Value) -> BoxFuture<'a, ToolCallResult>;
@@ -143,7 +144,7 @@ pub struct FnTool<F>
 where
     F: Fn(Value) -> BoxFuture<'static, ToolCallResult> + Send + Sync,
 {
-    definition: McpToolDef,
+    definition: McpToolDefinition,
     handler: F,
 }
 
@@ -152,7 +153,7 @@ where
     F: Fn(Value) -> BoxFuture<'static, ToolCallResult> + Send + Sync,
 {
     /// Creates a new function-based tool.
-    pub fn new(definition: McpToolDef, handler: F) -> Self {
+    pub fn new(definition: McpToolDefinition, handler: F) -> Self {
         Self {
             definition,
             handler,
@@ -164,7 +165,7 @@ impl<F> McpTool for FnTool<F>
 where
     F: Fn(Value) -> BoxFuture<'static, ToolCallResult> + Send + Sync,
 {
-    fn definition(&self) -> McpToolDef {
+    fn definition(&self) -> McpToolDefinition {
         self.definition.clone()
     }
 
@@ -177,25 +178,35 @@ where
 #[derive(Default)]
 pub struct ToolRegistry {
     tools: HashMap<String, DynTool>,
+    /// Cached definitions for faster access
+    definitions_cache: parking_lot::RwLock<Option<Vec<McpToolDefinition>>>,
 }
 
 impl ToolRegistry {
     /// Creates a new empty tool registry.
     pub fn new() -> Self {
-        Self::default()
+        Self {
+            tools: HashMap::new(),
+            definitions_cache: parking_lot::RwLock::new(None),
+        }
     }
 
     /// Registers a tool.
     pub fn register(&mut self, tool: DynTool) {
         let name = tool.definition().name.clone();
         self.tools.insert(name, tool);
+        // Invalidate cache when tools change
+        *self.definitions_cache.write() = None;
     }
 
     /// Registers multiple tools from a provider.
     pub fn register_provider<P: ToolProvider>(&mut self, provider: P) {
         for tool in provider.tools() {
-            self.register(tool);
+            let name = tool.definition().name.clone();
+            self.tools.insert(name, tool);
         }
+        // Invalidate cache when tools change
+        *self.definitions_cache.write() = None;
     }
 
     /// Gets a tool by name.
@@ -203,9 +214,40 @@ impl ToolRegistry {
         self.tools.get(name)
     }
 
-    /// Returns all tool definitions.
-    pub fn definitions(&self) -> Vec<McpToolDef> {
+    /// Returns all tool definitions (cached).
+    /// 
+    /// Uses an Arc-wrapped cache to minimize cloning overhead.
+    /// Returns a clone of the Arc, so iterating is efficient.
+    pub fn definitions(&self) -> Vec<McpToolDefinition> {
+        // Try to return cached definitions
+        {
+            let cache = self.definitions_cache.read();
+            if let Some(ref defs) = *cache {
+                return defs.clone();
+            }
+        }
+        
+        // Build and cache definitions
+        let defs: Vec<McpToolDefinition> = self.tools.values().map(|t| t.definition()).collect();
+        *self.definitions_cache.write() = Some(defs.clone());
+        defs
+    }
+
+    /// Returns an iterator over tool definitions without cloning.
+    /// 
+    /// More efficient than `definitions()` when you only need to iterate.
+    pub fn definitions_iter(&self) -> impl Iterator<Item = McpToolDefinition> + '_ {
+        self.tools.values().map(|t| t.definition())
+    }
+
+    /// Returns all tool definitions without caching (for cases where fresh data is needed).
+    pub fn definitions_uncached(&self) -> Vec<McpToolDefinition> {
         self.tools.values().map(|t| t.definition()).collect()
+    }
+
+    /// Invalidates the definitions cache.
+    pub fn invalidate_cache(&self) {
+        *self.definitions_cache.write() = None;
     }
 
     /// Returns the number of registered tools.
@@ -254,10 +296,10 @@ impl ToolRegistry {
 #[macro_export]
 macro_rules! fn_tool {
     ($name:expr, $desc:expr, $schema:tt, $handler:expr) => {{
-        use $crate::protocol::McpToolDef;
+        use $crate::protocol::McpToolDefinition;
         use $crate::tool::FnTool;
 
-        let definition = McpToolDef {
+        let definition = McpToolDefinition {
             name: $name.to_string(),
             description: Some($desc.to_string()),
             group: None,
@@ -278,13 +320,10 @@ mod tests {
     }
 
     impl McpTool for TestTool {
-        fn definition(&self) -> McpToolDef {
-            McpToolDef {
-                name: self.name.clone(),
-                description: Some("Test tool".to_string()),
-                group: None,
-                input_schema: serde_json::json!({"type": "object"}),
-            }
+        fn definition(&self) -> McpToolDefinition {
+            McpToolDefinition::new(&self.name)
+                .with_description("Test tool")
+                .with_schema(serde_json::json!({"type": "object"}))
         }
 
         fn call<'a>(&'a self, _args: Value) -> BoxFuture<'a, ToolCallResult> {

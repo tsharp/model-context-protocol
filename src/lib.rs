@@ -7,7 +7,8 @@
 //!
 //! ## Features
 //!
-//! - **McpHub**: Central hub for managing multiple MCP server connections
+//! - **McpServer**: Core MCP server with tools and capabilities
+//! - **McpServerHub**: Aggregates multiple external servers into one
 //! - **Multiple Transports**: Support for stdio and HTTP-based MCP servers
 //! - **Tool Routing**: Automatic routing of tool calls to the correct server
 //! - **Macros**: `#[mcp_tool]` for easy tool definitions from functions
@@ -16,7 +17,8 @@
 //!
 //! ```rust,ignore
 //! use mcp::macros::mcp_tool;
-//! use mcp::{McpServerConfig, McpServer};
+//! use mcp::server::stdio::McpStdioServer;
+//! use mcp::McpServerConfig;
 //!
 //! // Define tools as simple functions
 //! #[mcp_tool(description = "Add two numbers")]
@@ -30,39 +32,47 @@
 //!     let config = McpServerConfig::builder()
 //!         .name("calculator")
 //!         .version("1.0.0")
-//!         .with_stdio_transport()
 //!         .with_tools(tools![AddTool, SubtractTool])
 //!         .build();
 //!
-//!     McpServer::run(config).await?;
+//!     McpStdioServer::run(config).await?;
 //!     Ok(())
 //! }
 //! ```
 //!
-//! ## Connecting to Servers
+//! ## Aggregating Multiple Servers
 //!
 //! ```rust,ignore
-//! use mcp::{McpHub, McpServerConnectionConfig};
+//! use mcp::{McpServerHub, McpServerConnectionConfig};
+//! use mcp::server::stdio::McpStdioServer;
 //!
-//! let hub = McpHub::new();
+//! #[tokio::main]
+//! async fn main() -> Result<(), Box<dyn std::error::Error>> {
+//!     // Create a hub that aggregates external servers
+//!     let hub = std::sync::Arc::new(McpServerHub::new("aggregator", "1.0.0"));
 //!
-//! // Connect to an external server
-//! let config = McpServerConnectionConfig::stdio("my-server", "node", vec!["server.js".into()]);
-//! hub.connect(config).await?;
+//!     // Connect to external servers
+//!     hub.connect(McpServerConnectionConfig::stdio("calc", "node", vec!["calc.js".into()])).await?;
+//!     hub.connect(McpServerConnectionConfig::stdio("files", "python", vec!["files.py".into()])).await?;
 //!
-//! // List available tools
-//! let tools = hub.list_all_tools().await?;
+//!     // Wrap as a stdio server - all tools are now exposed
+//!     McpStdioServer::run(hub.to_config()).await?;
+//!     Ok(())
+//! }
 //! ```
 //!
 //! ## Feature Flags
 //!
 //! - `default` - Enables stdio, http, and macros features
-//! - `stdio` - Stdio transport for spawning server processes
-//! - `http` - HTTP transport for connecting to HTTP servers
-//! - `http-server` - HTTP server with actix-web (for hosting MCP servers)
+//! - `client` - Client transports for connecting to external MCP servers
+//! - `stdio-server` - Stdio server transport
+//! - `http-server` - HTTP server with actix-web
 //! - `macros` - Procedural macros for defining tools
 
 #![cfg_attr(docsrs, feature(doc_cfg))]
+
+/// Current MCP protocol version (2025-11-25).
+pub const MCP_PROTOCOL_VERSION: &str = "2025-11-25";
 
 pub mod protocol;
 pub mod result;
@@ -74,32 +84,65 @@ pub mod transport;
 #[cfg_attr(docsrs, doc(cfg(feature = "macros")))]
 pub mod macro_adapter;
 
-#[cfg(feature = "stdio")]
-#[cfg_attr(docsrs, doc(cfg(feature = "stdio")))]
-pub mod stdio;
+// Client transports (for connecting to external MCP servers)
+#[cfg(feature = "client")]
+pub mod client;
 
-#[cfg(feature = "http")]
-#[cfg_attr(docsrs, doc(cfg(feature = "http")))]
-pub mod http;
-
+pub mod circuit_breaker;
 pub mod hub;
+pub mod hub_common;
+pub mod server_hub;
+pub mod transport_factory;
 
 // =============================================================================
 // Re-exports
 // =============================================================================
 
-// Protocol types
+// Protocol types (core)
 pub use protocol::{
-    CallToolParams, CallToolResult, JsonRpcError, JsonRpcId, JsonRpcPayload, JsonRpcRequest,
-    JsonRpcResponse, ListToolsParams, ListToolsResult, McpCapabilities, McpServerInfo, McpToolDef,
-    ToolContent, ToolDefinition, ToolInputSchema, MCP_PROTOCOL_VERSION,
+    CallToolParams, CallToolResult, ClientInbound, JsonRpcError, JsonRpcId, JsonRpcMessage,
+    JsonRpcNotification, JsonRpcPayload, JsonRpcRequest, JsonRpcResponse, ListToolsParams,
+    ListToolsResult, McpCapabilities, McpServerInfo, McpToolDefinition, ServerOutbound,
+    ToolContent, ToolInputSchema,
+};
+
+// Protocol types (2025-11-25 - new)
+pub use protocol::{
+    // Core types
+    Annotations, BaseMetadata, Icon, IconTheme, Implementation, Role,
+    // Tool types
+    TaskSupport, ToolAnnotations, ToolExecution,
+    // Task types
+    CancelTaskParams, CreateTaskResult, GetTaskParams, GetTaskPayloadParams, ListTasksParams,
+    ListTasksResult, RelatedTaskMetadata, Task, TaskMetadata, TaskStatus, TaskStatusNotificationParams,
+    // Elicitation types
+    BooleanSchema, ElicitAction, ElicitationCompleteParams, ElicitRequestFormParams, ElicitRequestParams,
+    ElicitRequestUrlParams, ElicitResult, NumberSchema, StringSchema, StringSchemaFormat,
+    // Sampling types
+    CreateMessageParams, CreateMessageResult, ModelHint, ModelPreferences, SamplingContent,
+    SamplingMessage, ToolChoice, ToolChoiceMode, ToolResultContent, ToolUseContent,
+    // Logging types
+    LoggingLevel, LoggingMessageParams, SetLevelParams,
+    // Progress types
+    ProgressNotificationParams, ProgressToken,
+    // Roots types
+    ListRootsResult, Root,
+    // Completion types
+    CompleteArgument, CompleteContext, CompleteParams, CompleteResult, CompletionData,
+    PromptReference, ResourceTemplateReference,
 };
 
 // Transport types
 pub use transport::{
     ClientInfo, InitializeCapabilities, InitializeParams, InitializeResult,
-    McpServerConnectionConfig, McpTransport, McpTransportError, ServerCapabilities, ServerInfo,
-    TransportTypeId,
+    McpServerConnectionConfig, McpTransport, McpTransportError, RestartPolicy,
+    ServerCapabilities, ServerInfo, TransportTypeId,
+};
+
+// Transport types (2025-11-25 - new capabilities)
+pub use transport::{
+    ElicitationCapabilities, PromptsCapabilities, ResourcesCapabilities, RootsCapabilities,
+    SamplingCapabilities, ServerToolCapabilities, TasksCapabilities, ToolCapabilities,
 };
 
 // Result types
@@ -115,23 +158,34 @@ pub use tool::{
 #[doc(hidden)]
 pub use inventory;
 
-// Server
+// Server (core)
 pub use server::{
-    McpServer, McpServerConfig, McpServerConfigBuilder, ServerError, ServerTransport,
+    McpServer, McpServerChannels, McpServerConfig, McpServerConfigBuilder, ServerError, ServerStatus,
 };
 
-// Hub
+// Server transports
+#[cfg(feature = "stdio-server")]
+#[cfg_attr(docsrs, doc(cfg(feature = "stdio-server")))]
+pub use server::stdio::McpStdioServer;
+
+#[cfg(feature = "http-server")]
+#[cfg_attr(docsrs, doc(cfg(feature = "http-server")))]
+pub use server::http::McpHttpServer;
+
+// Hub (legacy - for direct client usage)
 pub use hub::McpHub;
 
-// Stdio transport (when enabled)
-#[cfg(feature = "stdio")]
-#[cfg_attr(docsrs, doc(cfg(feature = "stdio")))]
-pub use stdio::{AsyncStdioTransport, StdioTransport, StdioTransportAdapter};
+// Server Hub (aggregates multiple servers into one)
+pub use server_hub::McpServerHub;
 
-// HTTP transport (when enabled)
-#[cfg(feature = "http")]
-#[cfg_attr(docsrs, doc(cfg(feature = "http")))]
-pub use http::{HttpTransport, HttpTransportAdapter};
+// Client transports (for connecting to external servers)
+#[cfg(feature = "client")]
+#[cfg_attr(docsrs, doc(cfg(feature = "client")))]
+pub use client::stdio::{AsyncStdioTransport, StdioTransportAdapter, TokioStdioTransport};
+
+#[cfg(feature = "client")]
+#[cfg_attr(docsrs, doc(cfg(feature = "client")))]
+pub use client::http::{HttpTransport, HttpTransportAdapter};
 
 // Macros (when enabled)
 #[cfg(feature = "macros")]
@@ -174,9 +228,6 @@ pub mod macros {
 #[cfg_attr(docsrs, doc(cfg(feature = "macros")))]
 pub use macro_adapter::{MacroServer, MacroServerAdapter};
 
-/// Current MCP protocol version supported by this crate.
-pub const PROTOCOL_VERSION: &str = "2024-11-05";
-
 /// Crate version.
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");
 
@@ -186,7 +237,7 @@ mod tests {
 
     #[test]
     fn test_protocol_version() {
-        assert_eq!(PROTOCOL_VERSION, "2024-11-05");
+        assert_eq!(MCP_PROTOCOL_VERSION, "2025-11-25");
     }
 
     #[test]

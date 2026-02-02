@@ -4,17 +4,14 @@
 //! unified tool discovery, execution, and routing.
 
 use serde_json::Value;
-use std::collections::HashMap;
-use std::sync::{Arc, RwLock};
+use std::sync::Arc;
 use std::time::Duration;
 
-#[cfg(feature = "http")]
-use crate::http::HttpTransportAdapter;
-use crate::protocol::ToolDefinition;
-#[cfg(feature = "stdio")]
-use crate::stdio::StdioTransportAdapter;
+use crate::circuit_breaker::CircuitBreakerStats;
+use crate::hub_common::HubConnections;
+use crate::protocol::McpToolDefinition;
 use crate::transport::{
-    McpServerConnectionConfig, McpTransport, McpTransportError, TransportTypeId,
+    McpServerConnectionConfig, McpTransport, McpTransportError,
 };
 
 /// Central hub for MCP tool routing across multiple servers.
@@ -23,6 +20,8 @@ use crate::transport::{
 /// - Connection management for multiple MCP servers
 /// - Tool discovery and caching
 /// - Automatic routing of tool calls to the correct server
+/// - Circuit breaker protection for resilience
+/// - Parallel tool discovery for performance
 ///
 /// # Example
 ///
@@ -42,11 +41,10 @@ use crate::transport::{
 /// let result = hub.call_tool("my_tool", serde_json::json!({"arg": "value"})).await?;
 /// ```
 pub struct McpHub {
-    /// Server name → transport mapping
-    transports: Arc<RwLock<HashMap<String, Arc<dyn McpTransport>>>>,
-
-    /// Tool name → server name mapping for routing
-    tool_cache: Arc<RwLock<HashMap<String, String>>>,
+    /// Shared connection infrastructure
+    connections: HubConnections,
+    /// Default timeout for tool discovery
+    discovery_timeout: Duration,
 }
 
 impl Default for McpHub {
@@ -59,8 +57,16 @@ impl McpHub {
     /// Create a new empty hub.
     pub fn new() -> Self {
         Self {
-            transports: Arc::new(RwLock::new(HashMap::new())),
-            tool_cache: Arc::new(RwLock::new(HashMap::new())),
+            connections: HubConnections::new(),
+            discovery_timeout: Duration::from_secs(30),
+        }
+    }
+
+    /// Create a hub with a custom discovery timeout.
+    pub fn with_discovery_timeout(timeout: Duration) -> Self {
+        Self {
+            connections: HubConnections::new(),
+            discovery_timeout: timeout,
         }
     }
 
@@ -75,152 +81,52 @@ impl McpHub {
         &self,
         config: McpServerConnectionConfig,
     ) -> Result<Arc<dyn McpTransport>, McpTransportError> {
-        let transport: Arc<dyn McpTransport> = match config.transport {
-            #[cfg(feature = "stdio")]
-            TransportTypeId::Stdio => {
-                let command = config.command.ok_or_else(|| {
-                    McpTransportError::TransportError(
-                        "Stdio transport requires command".to_string(),
-                    )
-                })?;
-
-                let transport = StdioTransportAdapter::connect_with_env(
-                    &command,
-                    &config.args,
-                    config.env,
-                    Some(config.config.clone()),
-                    Duration::from_secs(config.timeout_secs),
-                )
-                .await?;
-
-                Arc::new(transport)
-            }
-            #[cfg(not(feature = "stdio"))]
-            TransportTypeId::Stdio => {
-                return Err(McpTransportError::NotSupported(
-                    "Stdio transport not enabled. Enable the 'stdio' feature.".to_string(),
-                ));
-            }
-            #[cfg(feature = "http")]
-            TransportTypeId::Http | TransportTypeId::Sse => {
-                let url = config.url.ok_or_else(|| {
-                    McpTransportError::TransportError("HTTP transport requires URL".to_string())
-                })?;
-
-                let transport = HttpTransportAdapter::with_timeout(
-                    url,
-                    Duration::from_secs(config.timeout_secs),
-                )?;
-
-                Arc::new(transport)
-            }
-            #[cfg(not(feature = "http"))]
-            TransportTypeId::Http | TransportTypeId::Sse => {
-                return Err(McpTransportError::NotSupported(
-                    "HTTP transport not enabled. Enable the 'http' feature.".to_string(),
-                ));
-            }
-        };
-
-        // Discover tools and cache mappings
-        let tools = transport.list_tools().await?;
-
-        {
-            let mut cache = self.tool_cache.write().unwrap();
-            for tool in &tools {
-                cache.insert(tool.name.clone(), config.name.clone());
-            }
-            let mut transports = self.transports.write().unwrap();
-            transports.insert(config.name.clone(), transport.clone());
-        }
-
-        Ok(transport)
+        let conn = self.connections.connect(config).await?;
+        conn.get_transport().await.ok_or(McpTransportError::ConnectionClosed)
     }
 
     /// Call a tool, automatically routing to the correct server.
+    /// 
+    /// Uses circuit breaker to prevent cascading failures - if a server is
+    /// unhealthy, requests will be rejected immediately.
     pub async fn call_tool(&self, name: &str, args: Value) -> Result<Value, McpTransportError> {
-        // Look up server for this tool
-        let server_name = self
-            .tool_cache
-            .read()
-            .unwrap()
-            .get(name)
-            .cloned()
-            .ok_or_else(|| McpTransportError::UnknownTool(name.to_string()))?;
-
-        // Get transport
-        let transport = self
-            .transports
-            .read()
-            .unwrap()
-            .get(&server_name)
-            .cloned()
-            .ok_or_else(|| McpTransportError::ServerNotFound(server_name.clone()))?;
-
-        // Forward call
-        transport.call_tool(name, args).await
+        self.connections.call_tool(name, args).await
     }
 
     /// List all tools from all connected servers.
-    pub async fn list_tools(&self) -> Result<Vec<(String, ToolDefinition)>, McpTransportError> {
-        let mut all_tools = Vec::new();
-
-        let transports = self.transports.read().unwrap().clone();
-        for (server_name, transport) in transports {
-            match transport.list_tools().await {
-                Ok(tools) => {
-                    let mut cache = self.tool_cache.write().unwrap();
-                    for tool in tools {
-                        cache.insert(tool.name.clone(), server_name.clone());
-                        all_tools.push((server_name.clone(), tool));
-                    }
-                }
-                Err(e) => {
-                    eprintln!(
-                        "Warning: Failed to list tools from '{}': {}",
-                        server_name, e
-                    );
-                }
-            }
-        }
-
-        Ok(all_tools)
+    pub async fn list_tools(&self) -> Result<Vec<(String, McpToolDefinition)>, McpTransportError> {
+        Ok(self.connections.list_tools())
     }
 
     /// Get all registered tools as a flat list.
-    pub async fn list_all_tools(&self) -> Result<Vec<ToolDefinition>, McpTransportError> {
-        let tools_with_servers = self.list_tools().await?;
-        Ok(tools_with_servers
-            .into_iter()
-            .map(|(_, tool)| tool)
-            .collect())
+    pub async fn list_all_tools(&self) -> Result<Vec<McpToolDefinition>, McpTransportError> {
+        Ok(self.connections.list_tool_definitions())
     }
 
-    /// Populate the tool cache by querying all servers.
+    /// Discover tools from all servers in parallel.
+    /// 
+    /// This is faster than sequential discovery when connecting to many servers.
+    pub async fn discover_tools_parallel(&self) -> Result<Vec<(String, McpToolDefinition)>, McpTransportError> {
+        self.connections.discover_tools_parallel(self.discovery_timeout).await
+    }
+
+    /// Populate the tool cache by querying all servers (parallel).
     pub async fn refresh_tool_cache(&self) -> Result<(), McpTransportError> {
-        let _ = self.list_tools().await?;
-        Ok(())
-    }
-
-    /// Manually register a tool in the cache.
-    pub fn register_tool_sync(&self, tool_name: &str, server_name: &str) {
-        self.tool_cache
-            .write()
-            .unwrap()
-            .insert(tool_name.to_string(), server_name.to_string());
+        self.connections.refresh_tools_parallel(self.discovery_timeout).await
     }
 
     /// Shutdown all connected servers.
     pub async fn shutdown_all(&self) -> Result<(), McpTransportError> {
         let mut errors = Vec::new();
 
-        let transports = std::mem::take(&mut *self.transports.write().unwrap());
-        for (server_name, transport) in transports {
-            if let Err(e) = transport.shutdown().await {
-                errors.push(format!("{}: {}", server_name, e));
+        for (server_name, conn) in self.connections.iter() {
+            if let Some(transport) = conn.get_transport().await {
+                if let Err(e) = transport.shutdown().await {
+                    errors.push(format!("{}: {}", server_name, e));
+                }
             }
         }
-        self.tool_cache.write().unwrap().clear();
+        self.connections.clear();
 
         if errors.is_empty() {
             Ok(())
@@ -231,45 +137,45 @@ impl McpHub {
 
     /// Disconnect a specific server.
     pub async fn disconnect(&self, server_name: &str) -> Result<(), McpTransportError> {
-        let transport = self
-            .transports
-            .write()
-            .unwrap()
-            .remove(server_name)
+        let conn = self.connections.remove(server_name)
             .ok_or_else(|| McpTransportError::ServerNotFound(server_name.to_string()))?;
 
-        // Remove tool cache entries for this server
-        self.tool_cache
-            .write()
-            .unwrap()
-            .retain(|_, server| server != server_name);
+        self.connections.clear_tools_for_server(server_name);
 
-        transport.shutdown().await
+        if let Some(transport) = conn.get_transport().await {
+            transport.shutdown().await?;
+        }
+        Ok(())
     }
 
     /// Get list of connected server names.
     pub fn list_servers(&self) -> Vec<String> {
-        self.transports.read().unwrap().keys().cloned().collect()
+        self.connections.list_servers()
     }
 
     /// Check if a server is connected.
     pub fn is_connected(&self, server_name: &str) -> bool {
-        self.transports.read().unwrap().contains_key(server_name)
+        self.connections.is_connected(server_name)
     }
 
-    /// Get health status of all servers.
-    pub fn health_check(&self) -> Vec<(String, bool)> {
-        self.transports
-            .read()
-            .unwrap()
-            .iter()
-            .map(|(name, transport)| (name.clone(), transport.is_alive()))
-            .collect()
+    /// Get health status of all servers (includes circuit breaker state).
+    pub async fn health_check(&self) -> Vec<(String, bool)> {
+        self.connections.health_check().await
     }
 
     /// Get the server name that provides a specific tool.
     pub fn server_for_tool(&self, tool_name: &str) -> Option<String> {
-        self.tool_cache.read().unwrap().get(tool_name).cloned()
+        self.connections.server_for_tool(tool_name)
+    }
+    
+    /// Get circuit breaker statistics for a server.
+    pub fn circuit_breaker_stats(&self, server_name: &str) -> Option<CircuitBreakerStats> {
+        self.connections.circuit_breaker_stats(server_name)
+    }
+    
+    /// Reset circuit breaker for a server (e.g., after manual recovery).
+    pub fn reset_circuit_breaker(&self, server_name: &str) {
+        self.connections.reset_circuit_breaker(server_name);
     }
 }
 

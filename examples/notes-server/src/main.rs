@@ -12,7 +12,7 @@
 use std::collections::HashMap;
 use std::sync::{Arc, RwLock};
 
-use mcp::{BoxFuture, DynTool, McpTool, McpToolDef, ToolCallResult, ToolContent, ToolProvider};
+use mcp::{BoxFuture, DynTool, McpTool, McpToolDefinition, ToolCallResult, ToolContent, ToolProvider};
 use serde_json::Value;
 
 // =============================================================================
@@ -90,8 +90,8 @@ struct NotesCreateTool {
 }
 
 impl McpTool for NotesCreateTool {
-    fn definition(&self) -> McpToolDef {
-        McpToolDef {
+    fn definition(&self) -> McpToolDefinition {
+        McpToolDefinition {
             name: "notes_create".to_string(),
             description: Some("Create a new note".to_string()),
             group: Some("notes".to_string()),
@@ -149,8 +149,8 @@ struct NotesReadTool {
 }
 
 impl McpTool for NotesReadTool {
-    fn definition(&self) -> McpToolDef {
-        McpToolDef {
+    fn definition(&self) -> McpToolDefinition {
+        McpToolDefinition {
             name: "notes_read".to_string(),
             description: Some("Read a note by ID".to_string()),
             group: Some("notes".to_string()),
@@ -189,8 +189,8 @@ struct NotesListTool {
 }
 
 impl McpTool for NotesListTool {
-    fn definition(&self) -> McpToolDef {
-        McpToolDef {
+    fn definition(&self) -> McpToolDefinition {
+        McpToolDefinition {
             name: "notes_list".to_string(),
             description: Some("List all notes, optionally filtered by tag".to_string()),
             group: Some("notes".to_string()),
@@ -237,8 +237,8 @@ struct NotesDeleteTool {
 }
 
 impl McpTool for NotesDeleteTool {
-    fn definition(&self) -> McpToolDef {
-        McpToolDef {
+    fn definition(&self) -> McpToolDefinition {
+        McpToolDefinition {
             name: "notes_delete".to_string(),
             description: Some("Delete a note by ID".to_string()),
             group: Some("notes".to_string()),
@@ -273,8 +273,8 @@ struct NotesSearchTool {
 }
 
 impl McpTool for NotesSearchTool {
-    fn definition(&self) -> McpToolDef {
-        McpToolDef {
+    fn definition(&self) -> McpToolDefinition {
+        McpToolDefinition {
             name: "notes_search".to_string(),
             description: Some("Search notes by content".to_string()),
             group: Some("notes".to_string()),

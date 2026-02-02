@@ -1,0 +1,11 @@
+[package]
+name = "hub-client"
+version = "0.1.0"
+edition = "2021"
+publish = false
+description = "Example demonstrating McpHub to connect to and call tools on MCP servers"
+
+[dependencies]
+mcp = { path = "../..", package = "model-context-protocol", features = ["client"] }
+tokio = { version = "1.0", features = ["full"] }
+serde_json = "1.0"

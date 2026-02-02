@@ -1,0 +1,12 @@
+[package]
+name = "aggregator-server"
+version = "0.1.0"
+edition = "2021"
+publish = false
+description = "Example demonstrating McpServerHub wrapped as an McpStdioServer with local tools"
+
+[dependencies]
+mcp = { path = "../..", package = "model-context-protocol", features = ["client", "stdio-server"] }
+model-context-protocol-macros = { path = "../../crates/model-context-protocol-macros" }
+tokio = { version = "1.0", features = ["full"] }
+serde_json = "1.0"

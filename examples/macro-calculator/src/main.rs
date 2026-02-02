@@ -28,7 +28,7 @@ use mcp::{MacroServer, MacroServerAdapter, McpServerConfig};
 // =============================================================================
 
 /// A simple calculator MCP server.
-#[mcp_server(name = "calculator", version = "1.0.0")]
+#[mcp_server(name = "calculator", version = "1.0.0", description = "A simple calculator MCP server that performs basic arithmetic operations")]
 pub struct Calculator;
 
 #[mcp_server]
@@ -111,6 +111,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Create calculator using macros
     let calc = Calculator;
+
+    // Demonstrate the generated server metadata accessors
+    println!("Server metadata:");
+    println!("  Name: {}", Calculator::name());
+    println!("  Version: {:?}", Calculator::version());
+    println!("  Description: {:?}", Calculator::description());
+    println!();
 
     // Show the generated tools with full schema
     println!("Tools defined by macros:");

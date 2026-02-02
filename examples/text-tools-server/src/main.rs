@@ -26,7 +26,8 @@
 //! ```
 
 use mcp::macros::mcp_tool;
-use mcp::{McpServer, McpServerConfig};
+use mcp::server::http::McpHttpServer;
+use mcp::McpServerConfig;
 
 // =============================================================================
 // Text Tools - just annotate functions!
@@ -73,10 +74,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let config = McpServerConfig::builder()
         .name("text-tools")
         .version("1.0.0")
-        .with_http_transport("127.0.0.1", 8080)
         .register_tools_in_group("text") // Auto-discovers all tools with group = "text"
         .build();
 
-    McpServer::run(config).await?;
+    McpHttpServer::run(config, "127.0.0.1", 8080).await?;
     Ok(())
 }

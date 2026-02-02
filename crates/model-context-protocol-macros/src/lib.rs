@@ -11,7 +11,7 @@
 //! ```rust,ignore
 //! use mcp::macros::mcp_server;
 //!
-//! #[mcp_server(name = "calculator", version = "1.0.0")]
+//! #[mcp_server(name = "calculator", description = "A simple calculator server")]
 //! pub struct Calculator;
 //!
 //! #[mcp_server]
@@ -45,9 +45,14 @@ mod tool;
 /// # On Structs
 ///
 /// ```rust,ignore
-/// #[mcp_server(name = "my-server", version = "1.0.0")]
+/// #[mcp_server(name = "my-server", version = "1.0.0", description = "My server description")]
 /// pub struct MyServer { ... }
 /// ```
+///
+/// Available attributes:
+/// - `name` - Server name (defaults to lowercase struct name)
+/// - `version` - Server version (optional)
+/// - `description` - Server description (optional)
 ///
 /// # On Impl Blocks
 ///

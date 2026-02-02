@@ -36,11 +36,13 @@ impl<T: Serialize> IntoCallToolResult for ToolResult<T> {
                 };
                 CallToolResult {
                     content: vec![ToolContent::text(text)],
+                    structured_content: None,
                     is_error: Some(false),
                 }
             }
             Err(e) => CallToolResult {
                 content: vec![ToolContent::text(format!("Error: {}", e))],
+                structured_content: None,
                 is_error: Some(true),
             },
         }
@@ -74,6 +76,7 @@ pub fn tool_err<T>(message: impl Into<String>) -> ToolResult<T> {
 pub fn success_result(text: impl Into<String>) -> CallToolResult {
     CallToolResult {
         content: vec![ToolContent::text(text)],
+        structured_content: None,
         is_error: Some(false),
     }
 }
@@ -82,6 +85,7 @@ pub fn success_result(text: impl Into<String>) -> CallToolResult {
 pub fn error_result(message: impl Into<String>) -> CallToolResult {
     CallToolResult {
         content: vec![ToolContent::text(message)],
+        structured_content: None,
         is_error: Some(true),
     }
 }

@@ -68,6 +68,71 @@ pub fn type_to_schema(ty: &Type) -> TokenStream {
                     "HashMap" | "BTreeMap" => {
                         quote! { serde_json::json!({"type": "object"}) }
                     }
+                    // Handle known enum types from the protocol (2025-11-25)
+                    "TaskStatus" => {
+                        quote! {
+                            serde_json::json!({
+                                "type": "string",
+                                "enum": ["working", "input_required", "completed", "failed", "cancelled"]
+                            })
+                        }
+                    }
+                    "TaskSupport" => {
+                        quote! {
+                            serde_json::json!({
+                                "type": "string",
+                                "enum": ["forbidden", "optional", "required"]
+                            })
+                        }
+                    }
+                    "ElicitAction" => {
+                        quote! {
+                            serde_json::json!({
+                                "type": "string",
+                                "enum": ["accept", "decline", "cancel"]
+                            })
+                        }
+                    }
+                    "Role" => {
+                        quote! {
+                            serde_json::json!({
+                                "type": "string",
+                                "enum": ["user", "assistant"]
+                            })
+                        }
+                    }
+                    "LoggingLevel" => {
+                        quote! {
+                            serde_json::json!({
+                                "type": "string",
+                                "enum": ["debug", "info", "notice", "warning", "error", "critical", "alert", "emergency"]
+                            })
+                        }
+                    }
+                    "ToolChoiceMode" => {
+                        quote! {
+                            serde_json::json!({
+                                "type": "string",
+                                "enum": ["auto", "required", "none"]
+                            })
+                        }
+                    }
+                    "IconTheme" => {
+                        quote! {
+                            serde_json::json!({
+                                "type": "string",
+                                "enum": ["light", "dark"]
+                            })
+                        }
+                    }
+                    "StringSchemaFormat" => {
+                        quote! {
+                            serde_json::json!({
+                                "type": "string",
+                                "enum": ["email", "uri", "date", "date-time"]
+                            })
+                        }
+                    }
                     _ => {
                         // Default to object for custom types
                         quote! { serde_json::json!({"type": "object"}) }
@@ -84,6 +149,33 @@ pub fn type_to_schema(ty: &Type) -> TokenStream {
         _ => {
             quote! { serde_json::json!({}) }
         }
+    }
+}
+
+/// Generate a oneOf schema for discriminated unions.
+/// This is used for types like ElicitRequestParams, ToolContent, etc.
+#[allow(dead_code)]
+pub fn generate_one_of_schema(variants: &[&str]) -> TokenStream {
+    let variant_schemas: Vec<TokenStream> = variants
+        .iter()
+        .map(|v| quote! { serde_json::json!({"$ref": #v}) })
+        .collect();
+
+    quote! {
+        serde_json::json!({
+            "oneOf": [#(#variant_schemas),*]
+        })
+    }
+}
+
+/// Generate an enum schema with string values.
+#[allow(dead_code)]
+pub fn generate_enum_schema(values: &[&str]) -> TokenStream {
+    quote! {
+        serde_json::json!({
+            "type": "string",
+            "enum": [#(#values),*]
+        })
     }
 }
 
@@ -133,5 +225,19 @@ mod tests {
 
         assert!(is_option_type(&opt_ty));
         assert!(!is_option_type(&string_ty));
+    }
+
+    #[test]
+    fn test_enum_type() {
+        let ty: Type = parse_quote!(TaskStatus);
+        let schema = type_to_schema(&ty);
+        assert!(!schema.is_empty());
+    }
+
+    #[test]
+    fn test_role_enum() {
+        let ty: Type = parse_quote!(Role);
+        let schema = type_to_schema(&ty);
+        assert!(!schema.is_empty());
     }
 }

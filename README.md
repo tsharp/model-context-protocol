@@ -34,7 +34,8 @@ The simplest way to create an MCP server - just annotate functions:
 
 ```rust
 use mcp::macros::mcp_tool;
-use mcp::{McpServer, McpServerConfig};
+use mcp::server::stdio::McpStdioServer;
+use mcp::McpServerConfig;
 
 #[mcp_tool("Add two numbers", group = "arithmetic")]
 fn add(#[param("First number")] a: f64, #[param("Second number")] b: f64) -> f64 {
@@ -51,11 +52,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let config = McpServerConfig::builder()
         .name("calculator")
         .version("1.0.0")
-        .with_stdio_transport()
         .register_tools_in_group("arithmetic")
         .build();
 
-    McpServer::run(config).await?;
+    McpStdioServer::run(config).await?;
     Ok(())
 }
 ```
@@ -66,7 +66,8 @@ For more complex servers with shared state:
 
 ```rust
 use mcp::macros::mcp_server;
-use mcp::{MacroServer, MacroServerAdapter, McpServerConfig};
+use mcp::server::stdio::McpStdioServer;
+use mcp::{MacroServerAdapter, McpServerConfig};
 
 #[mcp_server(name = "calculator", version = "1.0.0")]
 pub struct Calculator;
@@ -97,11 +98,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let config = McpServerConfig::builder()
         .name("calculator")
         .version("1.0.0")
-        .with_stdio_transport()
         .with_tools_from(MacroServerAdapter::new(Calculator))
         .build();
 
-    McpServer::run(config).await?;
+    McpStdioServer::run(config).await?;
     Ok(())
 }
 ```
@@ -171,7 +171,7 @@ cargo run -p text-tools-server
 
 ## Protocol Version
 
-This crate implements MCP protocol version `2024-11-05`.
+This crate implements MCP protocol version `2025-11-25`.
 
 ## License
 

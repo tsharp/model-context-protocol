@@ -22,7 +22,8 @@
 //! ```
 
 use mcp::macros::mcp_tool;
-use mcp::{McpServer, McpServerConfig};
+use mcp::server::stdio::McpStdioServer;
+use mcp::McpServerConfig;
 
 // =============================================================================
 // Calculator Tools - just annotate functions!
@@ -77,10 +78,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let config = McpServerConfig::builder()
         .name("calculator")
         .version("1.0.0")
-        .with_stdio_transport()
         .register_tools_in_group("arithmetic") // Auto-discovers all tools with group = "arithmetic"
         .build();
 
-    McpServer::run(config).await?;
+    McpStdioServer::run(config).await?;
     Ok(())
 }

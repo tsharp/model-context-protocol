@@ -2,7 +2,9 @@
 resolver = "2"
 members = [
     "crates/model-context-protocol-macros",
+    "examples/aggregator-server",
     "examples/calculator-server",
+    "examples/hub-client",
     "examples/text-tools-server",
     "examples/notes-server",
     "examples/macro-calculator",
@@ -35,21 +37,26 @@ categories = ["development-tools", "network-programming"]
 readme = "README.md"
 
 [features]
-default = ["stdio", "http", "macros"]
-stdio = []
-http = ["dep:reqwest"]
+default = ["client", "macros"]
+client = ["dep:reqwest"]
 macros = ["dep:model-context-protocol-macros"]
-http-server = ["dep:actix-web"]
+server = []
+http-server = ["server", "dep:actix-web"]
+stdio-server = ["server"]
+full = ["client", "macros", "server", "http-server", "stdio-server"]
 
 [dependencies]
 # Core
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
-tokio = { version = "1.0", features = ["full"] }
+tokio = { version = "1.0", features = ["full", "process"] }
 async-trait = "0.1"
 thiserror = "1.0"
 uuid = { version = "1.0", features = ["v4"] }
 inventory = "0.3"
+dashmap = "5.5"
+parking_lot = "0.12"
+futures = "0.3"
 
 # Optional - HTTP transport (client)
 reqwest = { version = "0.11", features = ["json", "stream"], optional = true }

@@ -20,9 +20,13 @@ pub struct ServerArgs {
     #[darling(default)]
     pub name: Option<String>,
 
-    /// Server version.
+    /// Server version (optional).
     #[darling(default)]
     pub version: Option<String>,
+
+    /// Server description (optional).
+    #[darling(default)]
+    pub description: Option<String>,
 }
 
 /// Implementation of `#[mcp_server]`.
@@ -63,20 +67,36 @@ fn process_struct(struct_item: ItemStruct, args: ServerArgs) -> TokenStream {
     let server_name = args
         .name
         .unwrap_or_else(|| struct_name.to_string().to_lowercase());
-    let version = args.version.unwrap_or_else(|| "1.0.0".to_string());
+    
+    // Version is now optional - returns Option<&'static str>
+    let version_impl = match args.version {
+        Some(v) => quote! { Some(#v) },
+        None => quote! { None },
+    };
+    
+    // Description is optional - returns Option<&'static str>
+    let description_impl = match args.description {
+        Some(d) => quote! { Some(#d) },
+        None => quote! { None },
+    };
 
     quote! {
         #struct_item
 
         impl #struct_name {
             /// Returns the MCP server name.
-            pub fn mcp_server_name() -> &'static str {
+            pub fn name() -> &'static str {
                 #server_name
             }
 
-            /// Returns the MCP server version.
-            pub fn mcp_server_version() -> &'static str {
-                #version
+            /// Returns the MCP server version (optional).
+            pub fn version() -> Option<&'static str> {
+                #version_impl
+            }
+
+            /// Returns the MCP server description (optional).
+            pub fn description() -> Option<&'static str> {
+                #description_impl
             }
         }
     }
@@ -128,7 +148,7 @@ fn process_impl_block(impl_block: ItemImpl) -> TokenStream {
 
         impl mcp::MacroServer for #struct_ty {
             /// List all MCP tools provided by this server.
-            fn list_tools(&self) -> Vec<mcp::McpToolDef> {
+            fn list_tools(&self) -> Vec<mcp::McpToolDefinition> {
                 vec![
                     #(#tool_defs),*
                 ]

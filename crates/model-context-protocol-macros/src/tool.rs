@@ -285,8 +285,8 @@ fn process_standalone_function(mut func: ItemFn, args: ToolArgs) -> TokenStream 
         pub struct #struct_name;
 
         impl mcp::McpTool for #struct_name {
-            fn definition(&self) -> mcp::McpToolDef {
-                mcp::McpToolDef {
+            fn definition(&self) -> mcp::McpToolDefinition {
+                mcp::McpToolDefinition {
                     name: #tool_name.to_string(),
                     description: Some(#description.to_string()),
                     group: #group_code,
@@ -295,6 +295,12 @@ fn process_standalone_function(mut func: ItemFn, args: ToolArgs) -> TokenStream 
                         "properties": { #properties },
                         "required": [#(#required),*]
                     }),
+                    output_schema: None,
+                    annotations: None,
+                    execution: None,
+                    title: None,
+                    icons: None,
+                    meta: None,
                 }
             }
 
@@ -496,7 +502,7 @@ pub struct CollectedTool {
 }
 
 impl CollectedTool {
-    /// Generate the `McpToolDef` struct initialization.
+    /// Generate the `McpToolDefinition` struct initialization.
     pub fn generate_mcp_tool_def(&self) -> TokenStream {
         let name = &self.name;
         let description = &self.description;
@@ -509,7 +515,7 @@ impl CollectedTool {
             .collect();
 
         quote! {
-            mcp::McpToolDef {
+            mcp::McpToolDefinition {
                 name: #name.to_string(),
                 description: Some(#description.to_string()),
                 group: None,
@@ -518,6 +524,12 @@ impl CollectedTool {
                     "properties": { #properties },
                     "required": [#(#required),*]
                 }),
+                output_schema: None,
+                annotations: None,
+                execution: None,
+                title: None,
+                icons: None,
+                meta: None,
             }
         }
     }
