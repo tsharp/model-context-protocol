@@ -23,7 +23,7 @@ Add this to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-model-context-protocol = "0.1"
+model-context-protocol = "0.2"
 ```
 
 ## Quick Start
