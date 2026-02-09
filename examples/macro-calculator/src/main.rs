@@ -20,8 +20,8 @@
 //! cargo run -p macro-calculator
 //! ```
 
-use mcp::macros::mcp_server;
-use mcp::{MacroServer, MacroServerAdapter, McpServerConfig};
+use model_context_protocol::macros::mcp_server;
+use model_context_protocol::{MacroServer, MacroServerAdapter, McpServerConfig};
 
 // =============================================================================
 // Calculator Server using Macros

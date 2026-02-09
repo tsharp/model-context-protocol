@@ -9,7 +9,7 @@
 //! # Example
 //!
 //! ```rust,ignore
-//! use mcp::macros::mcp_server;
+//! use model_context_protocol::macros::mcp_server;
 //!
 //! #[mcp_server(name = "calculator", description = "A simple calculator server")]
 //! pub struct Calculator;

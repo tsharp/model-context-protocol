@@ -280,9 +280,9 @@ fn process_standalone_function(mut func: ItemFn, args: ToolArgs) -> TokenStream 
         #[derive(Clone, Copy, Default)]
         pub struct #struct_name;
 
-        impl mcp::McpTool for #struct_name {
-            fn definition(&self) -> mcp::McpToolDefinition {
-                mcp::McpToolDefinition {
+        impl model_context_protocol::McpTool for #struct_name {
+            fn definition(&self) -> model_context_protocol::McpToolDefinition {
+                model_context_protocol::McpToolDefinition {
                     name: #tool_name.to_string(),
                     description: Some(#description.to_string()),
                     group: #group_code,
@@ -300,7 +300,7 @@ fn process_standalone_function(mut func: ItemFn, args: ToolArgs) -> TokenStream 
                 }
             }
 
-            fn call<'a>(&'a self, __args: serde_json::Value) -> mcp::BoxFuture<'a, mcp::ToolCallResult> {
+            fn call<'a>(&'a self, __args: serde_json::Value) -> model_context_protocol::BoxFuture<'a, model_context_protocol::ToolCallResult> {
                 Box::pin(async move {
                     let __args = __args.as_object().cloned().unwrap_or_default();
                     #(#param_extractions)*
@@ -310,9 +310,9 @@ fn process_standalone_function(mut func: ItemFn, args: ToolArgs) -> TokenStream 
         }
 
         // Register with inventory for auto-discovery
-        mcp::inventory::submit! {
-            mcp::ToolEntry::new(
-                || std::sync::Arc::new(#struct_name) as mcp::DynTool,
+        model_context_protocol::inventory::submit! {
+            model_context_protocol::ToolEntry::new(
+                || std::sync::Arc::new(#struct_name) as model_context_protocol::DynTool,
                 #inventory_group
             )
         }
@@ -339,7 +339,7 @@ fn generate_result_handling(output: &syn::ReturnType, call_expr: TokenStream) ->
             // No return value - just call and return success
             quote! {
                 #call_expr;
-                Ok(vec![mcp::ToolContent::text("ok")])
+                Ok(vec![model_context_protocol::ToolContent::text("ok")])
             }
         }
         syn::ReturnType::Type(_, ty) => {
@@ -350,7 +350,7 @@ fn generate_result_handling(output: &syn::ReturnType, call_expr: TokenStream) ->
                         Ok(value) => {
                             let text = serde_json::to_string(&value)
                                 .unwrap_or_else(|_| format!("{:?}", value));
-                            Ok(vec![mcp::ToolContent::text(text)])
+                            Ok(vec![model_context_protocol::ToolContent::text(text)])
                         }
                         Err(e) => Err(format!("{}", e)),
                     }
@@ -361,7 +361,7 @@ fn generate_result_handling(output: &syn::ReturnType, call_expr: TokenStream) ->
                     let __result = #call_expr;
                     let text = serde_json::to_string(&__result)
                         .unwrap_or_else(|_| format!("{:?}", __result));
-                    Ok(vec![mcp::ToolContent::text(text)])
+                    Ok(vec![model_context_protocol::ToolContent::text(text)])
                 }
             }
         }
@@ -512,7 +512,7 @@ impl CollectedTool {
             .collect();
 
         quote! {
-            mcp::McpToolDefinition {
+            model_context_protocol::McpToolDefinition {
                 name: #name.to_string(),
                 description: Some(#description.to_string()),
                 group: None,
@@ -597,7 +597,7 @@ impl CollectedTool {
                 #(#param_extractions)*
                 let result = self.#method(#(#param_names),*);
                 match serde_json::to_string(&result) {
-                    Ok(json) => Ok(vec![mcp::ToolContent::text(json)]),
+                    Ok(json) => Ok(vec![model_context_protocol::ToolContent::text(json)]),
                     Err(e) => Err(format!("Serialization error: {}", e)),
                 }
             }

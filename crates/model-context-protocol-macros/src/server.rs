@@ -143,19 +143,19 @@ fn process_impl_block(impl_block: ItemImpl) -> TokenStream {
             #(#cleaned_items)*
         }
 
-        impl mcp::MacroServer for #struct_ty {
+        impl model_context_protocol::MacroServer for #struct_ty {
             /// List all MCP tools provided by this server.
-            fn list_tools(&self) -> Vec<mcp::McpToolDefinition> {
+            fn list_tools(&self) -> Vec<model_context_protocol::McpToolDefinition> {
                 vec![
                     #(#tool_defs),*
                 ]
             }
 
             /// Execute a tool call by name.
-            fn call_tool(&self, name: &str, args: serde_json::Value) -> mcp::ToolCallResult {
+            fn call_tool(&self, name: &str, args: serde_json::Value) -> model_context_protocol::ToolCallResult {
                 let args = args.as_object().cloned().unwrap_or_default();
 
-                let result: Result<mcp::ToolCallResult, String> = (|| {
+                let result: Result<model_context_protocol::ToolCallResult, String> = (|| {
                     Ok(match name {
                         #(#call_arms)*
                         _ => return Err(format!("Unknown tool: {}", name)),

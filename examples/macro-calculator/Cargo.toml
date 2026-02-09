@@ -6,7 +6,7 @@ publish = false
 description = "Calculator MCP server example using macros"
 
 [dependencies]
-mcp = { path = "../..", package = "model-context-protocol", features = ["macros"] }
+model-context-protocol = { path = "../..", features = ["macros"] }
 model-context-protocol-macros = { path = "../../crates/model-context-protocol-macros" }
 tokio = { version = "1.0", features = ["full"] }
 serde = { version = "1.0", features = ["derive"] }
