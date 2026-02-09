@@ -16,9 +16,9 @@
 //! ## Quick Start - Creating a Server
 //!
 //! ```rust,ignore
-//! use mcp::macros::mcp_tool;
-//! use mcp::server::stdio::McpStdioServer;
-//! use mcp::McpServerConfig;
+//! use model_context_protocol::macros::mcp_tool;
+//! use model_context_protocol::server::stdio::McpStdioServer;
+//! use model_context_protocol::McpServerConfig;
 //!
 //! // Define tools as simple functions
 //! #[mcp_tool(description = "Add two numbers")]
@@ -43,8 +43,8 @@
 //! ## Aggregating Multiple Servers
 //!
 //! ```rust,ignore
-//! use mcp::{McpServerHub, McpServerConnectionConfig};
-//! use mcp::server::stdio::McpStdioServer;
+//! use model_context_protocol::{McpServerHub, McpServerConnectionConfig};
+//! use model_context_protocol::server::stdio::McpStdioServer;
 //!
 //! #[tokio::main]
 //! async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -252,7 +252,7 @@ pub mod macros {
     //!
     //! For standalone function tools:
     //! ```rust,ignore
-    //! use mcp::macros::mcp_tool;
+    //! use model_context_protocol::macros::mcp_tool;
     //!
     //! #[mcp_tool(description = "Add two numbers")]
     //! fn add(#[param("First number")] a: f64, #[param("Second number")] b: f64) -> f64 {

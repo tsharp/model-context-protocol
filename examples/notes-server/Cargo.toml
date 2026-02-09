@@ -6,7 +6,6 @@ publish = false
 description = "Notes MCP server example using in-process transport"
 
 [dependencies]
-mcp = { path = "../..", package = "model-context-protocol" }
-model-context-protocol-macros = { path = "../../crates/model-context-protocol-macros" }
+model-context-protocol = { path = "../.." }
 tokio = { version = "1.0", features = ["full"] }
 serde_json = "1.0"

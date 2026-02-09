@@ -6,7 +6,6 @@ publish = false
 description = "Text tools MCP server example using HTTP transport"
 
 [dependencies]
-mcp = { path = "../..", package = "model-context-protocol", features = ["http-server"] }
-model-context-protocol-macros = { path = "../../crates/model-context-protocol-macros" }
+model-context-protocol = { path = "../..", features = ["http-server", "macros"] }
 tokio = { version = "1.0", features = ["full"] }
 serde_json = "1.0"

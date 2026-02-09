@@ -25,9 +25,9 @@
 //!      -d '{"name":"echo","arguments":{"message":"Hello!"}}'
 //! ```
 
-use mcp::macros::mcp_tool;
-use mcp::server::http::McpHttpServer;
-use mcp::McpServerConfig;
+use model_context_protocol::macros::mcp_tool;
+use model_context_protocol::server::http::McpHttpServer;
+use model_context_protocol::McpServerConfig;
 
 // =============================================================================
 // Text Tools - just annotate functions!

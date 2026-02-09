@@ -20,7 +20,7 @@
 //! The client will spawn the calculator server as a subprocess and communicate
 //! with it via stdio.
 
-use mcp::{McpServerConnectionConfig, McpServerHub};
+use model_context_protocol::{McpServerConnectionConfig, McpServerHub};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {

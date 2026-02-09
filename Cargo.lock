@@ -196,7 +196,6 @@ name = "aggregator-server"
 version = "0.1.0"
 dependencies = [
  "model-context-protocol",
- "model-context-protocol-macros",
  "serde_json",
  "tokio",
 ]
@@ -316,7 +315,6 @@ name = "calculator-server"
 version = "0.1.0"
 dependencies = [
  "model-context-protocol",
- "model-context-protocol-macros",
  "serde_json",
  "tokio",
 ]
@@ -1041,7 +1039,6 @@ name = "macro-calculator"
 version = "0.1.0"
 dependencies = [
  "model-context-protocol",
- "model-context-protocol-macros",
  "serde",
  "serde_json",
  "tokio",
@@ -1135,7 +1132,6 @@ name = "notes-server"
 version = "0.1.0"
 dependencies = [
  "model-context-protocol",
- "model-context-protocol-macros",
  "serde_json",
  "tokio",
 ]
@@ -1716,7 +1712,6 @@ name = "text-tools-server"
 version = "0.1.0"
 dependencies = [
  "model-context-protocol",
- "model-context-protocol-macros",
  "serde_json",
  "tokio",
 ]

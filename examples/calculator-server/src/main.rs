@@ -21,9 +21,9 @@
 //! {"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"add","arguments":{"a":5,"b":3}}}
 //! ```
 
-use mcp::macros::mcp_tool;
-use mcp::server::stdio::McpStdioServer;
-use mcp::McpServerConfig;
+use model_context_protocol::macros::mcp_tool;
+use model_context_protocol::server::stdio::McpStdioServer;
+use model_context_protocol::McpServerConfig;
 
 // =============================================================================
 // Calculator Tools - just annotate functions!

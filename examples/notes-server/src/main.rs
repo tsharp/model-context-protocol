@@ -12,7 +12,7 @@
 use std::collections::HashMap;
 use std::sync::{Arc, RwLock};
 
-use mcp::{
+use model_context_protocol::{
     BoxFuture, DynTool, McpTool, McpToolDefinition, ToolCallResult, ToolContent, ToolProvider,
 };
 use serde_json::Value;
@@ -318,7 +318,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("=== Notes MCP Server Example ===\n");
 
     // Build server configuration with tools from a provider (like WithToolsFromAssembly)
-    let config = mcp::McpServerConfig::builder()
+    let config = model_context_protocol::McpServerConfig::builder()
         .name("notes-server")
         .version("1.0.0")
         .with_tools_from(NotesProvider::new())

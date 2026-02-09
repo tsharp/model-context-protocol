@@ -47,9 +47,9 @@
 //! - Create a unified tool interface for clients
 //! - Chain MCP servers together
 
-use mcp::macros::mcp_tool;
-use mcp::server::stdio::McpStdioServer;
-use mcp::{McpServerConfig, McpServerConnectionConfig, McpServerHub};
+use model_context_protocol::macros::mcp_tool;
+use model_context_protocol::server::stdio::McpStdioServer;
+use model_context_protocol::{McpServerConfig, McpServerConnectionConfig, McpServerHub};
 use std::sync::Arc;
 
 // =============================================================================
